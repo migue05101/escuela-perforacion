@@ -108,7 +108,7 @@ function initEngine(){
   scene.add(sun);scene.add(sun.target);
   world=new THREE.Group();scene.add(world);
   raycaster=new THREE.Raycaster();
-  buildWorld();
+  buildWorld();loadWorker();
   setupInput(renderer.domElement);setupXR();
   new ResizeObserver(resize).observe(view);applyQuality();resize();
   renderer.setAnimationLoop(tick);

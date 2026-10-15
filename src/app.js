@@ -56,14 +56,15 @@ function tick(){
   camera.getWorldPosition(tv);sky.position.copy(tv);
   renderer.shadowMap.needsUpdate=true;renderer.shadowMap.autoUpdate=false;
   const cv=renderer.domElement,W=cv.clientWidth,Hh=cv.clientHeight;
+  if(I.mouth){I.head.getWorldPosition(hv);const fw=V(Math.sin(I.g.rotation.y),0,Math.cos(I.g.rotation.y));I.mouth.visible=CAM.pos.clone().sub(hv).normalize().dot(fw)>.35&&CAM.pos.distanceTo(hv)<12}
   if(renderer.xr.isPresenting){renderer.render(scene,camera);return}
   renderer.setScissorTest(false);renderer.setViewport(0,0,W,Hh);renderer.render(scene,camera);
   // retrato del instructor (imagen en imagen)
   const pip=$('#pip');
   if(!renderer.xr.isPresenting&&I.g.visible&&pip.offsetWidth){const r=pip.getBoundingClientRect(),c=cv.getBoundingClientRect();
     const x=r.left-c.left+2,y=c.bottom-r.bottom+2,w=r.width-4,h=r.height-4;
-    I.head.getWorldPosition(hv);const yaw=I.g.rotation.y;const pc=RIG.pipCam;pc.position.set(hv.x+Math.sin(yaw)*.95,hv.y+.06,hv.z+Math.cos(yaw)*.95);pc.lookAt(hv.x,hv.y-.1,hv.z);pc.aspect=w/h;pc.updateProjectionMatrix();
-    renderer.setViewport(x,y,w,h);renderer.setScissor(x,y,w,h);renderer.setScissorTest(true);renderer.setClearColor(0x2a3640,1);renderer.clear();renderer.render(scene,pc);renderer.setScissorTest(false);renderer.setClearColor(0x000000,0)}
+    I.head.getWorldPosition(hv);const yaw=I.g.rotation.y;const pc=RIG.pipCam;const oy=I.pipOff||0;pc.position.set(hv.x+Math.sin(yaw)*.95,hv.y+oy+.06,hv.z+Math.cos(yaw)*.95);pc.lookAt(hv.x,hv.y+oy-.1,hv.z);pc.aspect=w/h;pc.updateProjectionMatrix();
+    if(I.mouth)I.mouth.visible=true;renderer.setViewport(x,y,w,h);renderer.setScissor(x,y,w,h);renderer.setScissorTest(true);renderer.setClearColor(0x2a3640,1);renderer.clear();renderer.render(scene,pc);renderer.setScissorTest(false);renderer.setClearColor(0x000000,0)}
 }
 
 if(prof())openHub();else{renderLogin();show('s-login')}

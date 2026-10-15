@@ -64,7 +64,7 @@ function makePerson(o){
   RIG.people.push(P);return P}
 const tmpV=V(0,0,0),tmpQ=new THREE.Quaternion();
 function animatePeople(dt,T){
-  for(const P of RIG.people){if(!visibleDeep(P.g))continue;const t=T+P.ph;
+  for(const P of RIG.people){if(!visibleDeep(P.g))continue;if(P.gltf){animGLTF(P,dt,T);continue}const t=T+P.ph;
     P.torso.scale.y=1+Math.sin(t*1.6)*.008;P.head.rotation.y=Math.sin(t*.4)*.15;
     let ar=P.armR,al=P.armL;
     if(P.anim==='walk'){const s=Math.sin(t*7);P.legL.hip.rotation.x=s*.5;P.legR.hip.rotation.x=-s*.5;P.legL.knee.rotation.x=Math.max(0,-s)*.6;P.legR.knee.rotation.x=Math.max(0,s)*.6;al.sh.rotation.x=-s*.4;ar.sh.rotation.x=s*.4}
@@ -410,7 +410,7 @@ function buildInstructor(){
 function insAt(pos,face,point){const I=RIG.ins;I.g.visible=true;I.g.position.copy(pos);I.face=face||null;I.point=point||null}
 async function insWalk(to,speed=1.6){const I=RIG.ins,from=I.g.position.clone(),d=from.distanceTo(to);if(d<.05)return;if(d>18){I.g.position.copy(to);return}
   I.anim='walk';I.g.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);await tweenP(d/speed,p=>I.g.position.lerpVectors(from,to,p));I.anim='idle'}
-function insFace(dt){const I=RIG.ins;if(!I||I.anim==='walk'||I.anim==='climb')return;const tgt=I.face||CAM.pos;const a=Math.atan2(tgt.x-I.g.position.x,tgt.z-I.g.position.z);let d=a-I.g.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));I.g.rotation.y+=d*Math.min(1,dt*4)}
+function insFace(dt){const I=RIG.ins;if(!I||I.anim==='walk'||I.anim==='climb')return;const tgt=I.face||(I.point?CAM.pos.clone().lerp(I.point,.45):CAM.pos);const a=Math.atan2(tgt.x-I.g.position.x,tgt.z-I.g.position.z);let d=a-I.g.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));I.g.rotation.y+=d*Math.min(1,dt*4)}
 
 /* ---------- vista del pozo en corte (control de pozo) ---------- */
 function buildWell(){
@@ -433,4 +433,48 @@ function updateFX(dt){
   const sp=RIG.spray,gs=RIG.gas;sp.visible=RIG.fx.spray>0;gs.visible=RIG.fx.gas>0;
   if(sp.visible){const pos=sp.geometry.attributes.position;sp.userData.s.forEach((q,i)=>{q.t-=dt;if(q.t<=0||q.p.y<F){q.p.set((R()-.5)*.2,F+.9,(R()-.5)*.2);q.v.set((R()-.5)*1.6,2+R()*3*RIG.fx.spray,(R()-.5)*1.6);q.t=1+R()}q.v.y-=9.8*dt;q.p.addScaledVector(q.v,dt);pos.setXYZ(i,q.p.x,q.p.y,q.p.z)});pos.needsUpdate=true}
   if(gs.visible){const pos=gs.geometry.attributes.position;gs.material.opacity=.2*RIG.fx.gas;gs.userData.s.forEach((q,i)=>{q.t-=dt;if(q.t<=0){const src=i%2?V(0,F+.5,0):V(14.5,3,-10.5);q.p.copy(src).add(V((R()-.5)*3,R()*1.5,(R()-.5)*3));q.v.set((R()-.5)*.6,.15+R()*.3,.9+R()*.8);q.t=4+R()*5}q.p.addScaledVector(q.v,dt);pos.setXYZ(i,q.p.x,q.p.y,q.p.z)});pos.needsUpdate=true}
+}
+
+/* ---------- personajes animados (Worker.gltf) ---------- */
+let WORKER=null;
+function loadWorker(){
+  if(!THREE.GLTFLoader||!THREE.SkeletonUtils)return;
+  new THREE.GLTFLoader().load('Worker.gltf',g=>{WORKER=g;upgradePeople()},undefined,e=>console.warn('No se pudo cargar Worker.gltf',e));
+}
+function makeWorker(o){
+  const m=THREE.SkeletonUtils.clone(WORKER.scene);m.scale.setScalar(.95);
+  const cache=new Map();
+  m.traverse(x=>{if(x.isMesh){x.castShadow=true;x.receiveShadow=true;x.frustumCulled=false;
+    if(!cache.has(x.material)){const c=x.material.clone();const t=o.tint&&o.tint[c.name];if(t!=null)c.color.copy(lin(t));c.metalness=0;c.roughness=Math.max(.55,c.roughness);cache.set(x.material,c)}x.material=cache.get(x.material)}});
+  const mixer=new THREE.AnimationMixer(m),acts={};WORKER.animations.forEach(a=>acts[a.name]=mixer.clipAction(a));
+  for(const k of['Interact','Wave','Death']){if(acts[k]){acts[k].setLoop(THREE.LoopOnce,1);acts[k].clampWhenFinished=true}}
+  let head=null;m.traverse(x=>{if(x.isBone&&x.name==='Head')head=x});
+  return{m,mixer,acts,head,cur:null}}
+function playClip(P,name,fade=.3){const W=P.gltf;if(W.cur===name)return;const a=W.acts[name];if(!a)return;const prev=W.cur&&W.acts[W.cur];a.reset().setEffectiveWeight(1).play();if(prev)prev.crossFadeTo(a,fade,false);W.cur=name}
+function upgradeOne(P,o){
+  const W=makeWorker(o);P.g.children.forEach(c=>c.visible=false);P.g.add(W.m);P.gltf=W;
+  if(o.mouth&&W.head){W.m.updateMatrixWorld(true);W.mixer.update(0);playClip(P,'Idle',0);W.mixer.update(.01);W.m.updateMatrixWorld(true);
+    const hp=W.head.getWorldPosition(V(0,0,0)),local=P.g.worldToLocal(hp.clone());
+    const mp=P.g.localToWorld(V(0,local.y+o.mouth[1],o.mouth[2]));const mouth=new THREE.Mesh(new THREE.BoxGeometry(.045,.01,.004),new THREE.MeshBasicMaterial({color:lin(0x3a1512),depthTest:false}));mouth.renderOrder=8;mouth.castShadow=false;
+    W.head.add(mouth);W.head.updateMatrixWorld(true);mouth.position.copy(W.head.worldToLocal(mp));mouth.scale.setScalar(1/(W.m.scale.x*W.head.getWorldScale(V(0,0,0)).x/W.m.scale.x));P.mouth=mouth;P.mouthBase=mouth.scale.y}
+  else P.mouth=null;
+  P.head=W.head||P.head;P.pipOff=.1;playClip(P,'Idle',0)}
+function upgradePeople(){
+  try{
+    upgradeOne(RIG.ins,{tint:{Worker_Yellow:0xf2f2ee,Worker_Vest:0x1f3f6a},mouth:[0,.002,.165]});
+    upgradeOne(RIG.hand1,{});upgradeOne(RIG.hand2,{});upgradeOne(RIG.mudman,{tint:{Worker_Vest:0x2f7d4a}});
+  }catch(e){console.warn('Personajes: se mantienen los básicos',e)}
+}
+function animGLTF(P,dt,T){
+  const W=P.gltf,t=T+P.ph;
+  if(P.anim==='walk')playClip(P,'Walk');
+  else if(P.anim==='work')playClip(P,W.cur==='Interact'&&W.acts.Interact.isRunning()?'Interact':(Math.sin(t*1.3)>0?'Interact':'Idle'));
+  else if(P.anim==='down')playClip(P,'Death',.2);
+  else{if(P.point&&P.pointWas!==P.point){P.pointWas=P.point;W.cur=null;playClip(P,'Interact',.25)}
+    if(!P.point)P.pointWas=null;
+    if(W.cur==='Interact'&&!W.acts.Interact.isRunning())playClip(P,'Idle',.4);
+    if(W.cur!=='Interact'&&W.cur!=='Idle')playClip(P,'Idle',.4)}
+  W.mixer.update(dt);
+  if(P.talk&&W.head&&P.anim!=='walk'){W.head.rotation.x+=Math.sin(t*5.2)*.05;W.head.rotation.y+=Math.sin(t*2.1)*.06}
+  if(P.mouth){const m=P.talk?(.3+.7*Math.abs(Math.sin(t*15)*Math.sin(t*4.7+1))):0;P.mouth.scale.y=lerp(P.mouth.scale.y,P.mouthBase*(1+m*2.6),.5)}
 }
