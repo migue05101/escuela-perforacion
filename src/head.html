@@ -74,6 +74,7 @@ input[type=text],select{background:var(--bg);border:1px solid var(--line);color:
 .chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,transparent)}
 .chip.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 50%,transparent)}
 .tag{font-family:var(--display);text-transform:uppercase;letter-spacing:.1em;font-size:12px;color:var(--info)}
+.sect{margin-top:30px}.sect>.eyebrow{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.sect>p{margin:4px 0 0;color:var(--muted);font-size:14px;max-width:70ch}.sect .mods{margin-top:14px}
 .platforms{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .note{font-size:13px;color:var(--muted);max-width:75ch;margin-top:26px;border-left:3px solid var(--line);padding-left:12px}
 /* módulo */
@@ -203,12 +204,13 @@ input[type=text],select{background:var(--bg);border:1px solid var(--line);color:
         <div class="stat"><small>Puntos</small><b class="mono" id="hubXp">0</b></div>
         <div class="stat"><small>Nivel</small><b id="hubLevel">—</b></div>
         <div class="stat"><small>Aprobados</small><b class="mono" id="hubDone">0/6</b></div>
+        <label class="stat"><small>Cargo</small><select id="hubRoleSel" style="min-height:32px;padding:2px 6px;margin-top:2px"></select></label>
         <button class="btn ghost sm" id="switchUser" type="button">Cambiar aprendiz</button>
       </div>
     </div>
     <div class="progress"><i id="hubBar" style="width:0"></i></div>
-    <div class="muted" style="font-size:13px">Ruta recomendada: del módulo 1 al 6. Cada práctica empieza con una demostración narrada del instructor. Se aprueba con 70 puntos o más.</div>
-    <div class="mods" id="modGrid"></div>
+    <div class="muted" style="font-size:13px" id="hubRoleDesc"></div>
+    <div id="modGrid"></div>
     <div style="margin-top:28px"><div class="eyebrow">Plataformas</div><div class="platforms" id="platforms"></div></div>
     <p class="note">Prototipo de formación. Los procedimientos son esquemas generales de referencia: antes de uso formal deben validarse con el instructor HSE, el procedimiento escrito de cada equipo y la certificación correspondiente (por ejemplo IWCF / IADC WellSharp en control de pozo y curso de trabajo en alturas vigente).</p>
   </div>

@@ -175,3 +175,122 @@ const EPP=[
  {k:'cadena',n:'Cadena',ok:false,f:'La cadena se queda en la caseta: se enreda en equipos que giran.'},
  {k:'gorra',n:'Gorra de tela',ok:false,f:'La gorra no reemplaza el casco.'},
 ];
+
+/* ===================================================================== CARGOS Y RUTAS */
+const ROLE_KEY={'Obrero de patio':'patio','Cuñero':'cunero','Encuellador':'encuellador','Perforador':'perforador','Supervisor / instructor':'supervisor'};
+const roleKey=r=>ROLE_KEY[r]||'cunero';
+const ROLE_INFO={
+ patio:{n:'Obrero de patio',d:'Orden de la locación, manejo de tubería en los burros, apoyo a la grúa con señales y cabos, y mezcla de químicos en la tolva.'},
+ cunero:{n:'Cuñero',d:'Trabaja en la mesa rotaria: cuñas, llaves de fuerza, conexiones de tubería e instalación de la FOSV en una emergencia.'},
+ encuellador:{n:'Encuellador',d:'Encuelle en los viajes y responsable del lodo: pruebas de peso y viscosidad, tanques, zarandas y bombas.'},
+ perforador:{n:'Perforador',d:'Opera la consola: malacate, top drive y bombas. Dirige la cuadrilla del piso y es el primero en cerrar el pozo.'},
+ supervisor:{n:'Supervisor',d:'Permisos de trabajo, inspecciones, charlas y simulacros. Coordina la operación y el control del pozo.'},
+};
+MODS.push(
+ {id:'patio',n:'07',t:'Tubería en los burros y grúa',d:'Prepara la tubería: quita protectores, limpia e inspecciona roscas, mide y llena la hoja de tubería. Luego guía la grúa con señales.',tag:'Obrero de patio · 1.ª persona',min:25,role:'patio'},
+ {id:'cunero',n:'08',t:'Conexión en la mesa',d:'Mete tubería al pozo: grasa, emboque, llave de giro, llaves de fuerza, torque correcto y cuñas.',tag:'Cuñero · 1.ª persona',min:25,role:'cunero'},
+ {id:'lodo',n:'09',t:'Pruebas de lodo y ronda',d:'Mide el peso con la balanza de lodo y la viscosidad con el embudo Marsh, y haz la ronda de zarandas, tanques y bombas.',tag:'Encuellador · 1.ª persona',min:25,role:'encuellador'},
+ {id:'consola',n:'10',t:'Consola del perforador',d:'Perfora desde la cabina controlando peso sobre la broca, rotaria y bombas. Detecta la patada y cierra el pozo.',tag:'Perforador · Simulador',min:25,role:'perforador'},
+ {id:'supervisor',n:'11',t:'Permiso, inspección y simulacro',d:'Revisa un permiso de trabajo en alturas, inspecciona el equipo buscando peligros y dirige un simulacro de patada.',tag:'Supervisor · Práctica',min:25,role:'supervisor'},
+);
+const COMMON=['hse','taladro','control','casos'];
+const ROUTE={
+ patio:{own:['patio','rigup'],prev:[]},
+ cunero:{own:['cunero'],prev:['patio']},
+ encuellador:{own:['encuelle','lodo'],prev:['cunero']},
+ perforador:{own:['consola'],prev:['encuelle','lodo']},
+ supervisor:{own:['supervisor','rigup'],prev:['consola']},
+};
+
+/* Casos vistos desde cada cargo */
+const CASE_ROLE={
+ patada:{
+  patio:{r:'Obrero de patio',brief:'Turno de noche. Estás ordenando la planchada mientras sacan tubería. De pronto suena la alarma del pozo.',nodes:[
+   {x:'Suena la alarma y el perforador anuncia por radio: pozo fluyendo.',alarm:true,fx:1,
+    ind:[['Alarma','Activa','bad'],['Tu puesto','Tanques de lodo','ok'],['Piso','Cuadrilla actuando','warn'],['Viento','Del norte','ok']],
+    o:[{t:'Ir a tu puesto asignado en el plan de emergencia y esperar instrucciones',ok:true,f:'Correcto. Cada persona tiene un puesto en el plan de control de pozo; el tuyo está en los tanques.'},
+       {t:'Subir al piso a ayudar a cerrar el pozo',ok:false,f:'En el piso solo trabaja la cuadrilla asignada. Más gente ahí estorba y queda expuesta.'},
+       {t:'Seguir trabajando: no es tu área',ok:false,f:'Una alarma de pozo es asunto de todos. Debes ir a tu puesto.'}]},
+   {x:'El encuellador te pide subir barita a la tolva para aumentar el peso del lodo.',fx:0,alarm:true,
+    ind:[['Lodo actual','10,4 lpg','warn'],['Lodo pedido','Según programa','ok'],['Químico','Barita','ok'],['EPP químicos','Requerido','warn']],
+    o:[{t:'Ponerte el EPP para químicos (careta, guantes de nitrilo, delantal) y llevar los sacos a la tolva según te indique',ok:true,f:'Correcto. Rápido, pero con el EPP que exige la hoja de seguridad del producto.'},
+       {t:'Vaciar los sacos rápido sin protección para ganar tiempo',ok:false,f:'El polvo de los químicos daña ojos y pulmones. El EPP no es opcional ni en una emergencia.'},
+       {t:'Echar a la tolva cualquier químico que tengas a mano',ok:false,f:'Solo se agrega lo que indica el programa de lodo y en la cantidad que pide el encuellador.'}]},
+   {x:'Ves a un conductor de un camión acercándose al contrapozo para mirar qué pasa.',alarm:true,
+    ind:[['Pozo','Cerrado','ok'],['Contrapozo','Posible gas','bad'],['Visitante','Sin inducción','bad'],['Punto de encuentro','N.º 1','ok']],
+    o:[{t:'Detenerlo, explicarle el riesgo y llevarlo al punto de encuentro',ok:true,f:'Correcto. El contrapozo puede acumular gas; nadie se acerca sin autorización.'},
+       {t:'Dejarlo: solo va a mirar',ok:false,f:'Un curioso en el contrapozo durante una patada puede convertirse en víctima.'},
+       {t:'Acompañarlo para que no se acerque tanto',ok:false,f:'Así serían dos personas expuestas. Hay que sacarlo de la zona.'}]},
+  ]},
+  encuellador:{r:'Encuellador',brief:'Turno de noche. Estás en el encuelladero durante un viaje sacando tubería.',nodes:[
+   {x:'Desde arriba ves lodo saliendo por la tubería en la mesa, con la bomba apagada. Suena la alarma.',alarm:true,fx:1,
+    ind:[['Alarma','Activa','bad'],['Parada','En el elevador','warn'],['Tu conexión','Línea de vida','ok'],['Tu puesto','Tanques de lodo','ok']],
+    o:[{t:'Avisar por radio, asegurar la parada en los peines y bajar con el bloque retráctil a tu puesto en los tanques',ok:true,f:'Correcto. La parada asegurada no estorba el cierre, y tu puesto de control de pozo está en los tanques.'},
+       {t:'Quedarte arriba esperando a que pase',ok:false,f:'Si sale gas, el encuelladero es una zona expuesta. Tu puesto está en los tanques.'},
+       {t:'Bajar rápido sin conectarte para ganar tiempo',ok:false,f:'Una caída en plena emergencia agrega una víctima. Siempre conectado.'}]},
+   {x:'Llegas a los tanques de lodo.',alarm:true,
+    ind:[['Tanque activo','Subiendo','bad'],['Ganancia','+5,3 bbl','bad'],['Bombas','Apagadas','ok'],['Barita','Disponible','ok']],
+    o:[{t:'Vigilar y reportar el volumen de los tanques y preparar lodo de control según el programa',ok:true,f:'Correcto. Eres los ojos del perforador en los tanques.'},
+       {t:'Encender las bombas para circular el pozo',ok:false,f:'Las bombas solo se encienden por orden del perforador, siguiendo el plan de control.'},
+       {t:'Irte al punto de encuentro',ok:false,f:'En una patada tienes una tarea asignada en los tanques; el punto de encuentro es para evacuaciones.'}]},
+   {x:'El perforador te pide por radio la ganancia total.',
+    ind:[['Nivel inicial','182,0 bbl','ok'],['Nivel actual','187,3 bbl','warn'],['Pozo','Cerrado','ok'],['Hora','02:14','ok']],
+    o:[{t:'Reportar 5,3 bbl de ganancia, leídos en el indicador del tanque',ok:true,f:'Correcto: 187,3 menos 182,0. Ese dato se usa para planear el control.'},
+       {t:'Dar un valor aproximado de memoria',ok:false,f:'La ganancia se lee y se reporta exacta; un dato equivocado cambia los cálculos.'},
+       {t:'Decir que no lo anotaste',ok:false,f:'Registrar el nivel antes y después es parte de tu trabajo en los tanques.'}]},
+  ]},
+  perforador:{r:'Perforador',brief:'Turno de noche. Estás en la consola sacando tubería para cambiar la broca.',nodes:[
+   {x:'El cuñero te avisa que el pozo no toma lo que dice la hoja de viaje: 1,8 bbl de desfase.',
+    ind:[['Tanque de viaje','+1,8 bbl','warn'],['Paradas fuera','34 / 92','ok'],['Peso en gancho','86 klb','ok'],['Bombas','Apagadas','ok']],
+    o:[{t:'Detener el viaje, sentar en cuñas, instalar la FOSV abierta y hacer flow check',ok:true,f:'Correcto. Ante la duda, se para y se observa el pozo.'},
+       {t:'Seguir sacando más rápido para terminar',ok:false,f:'Sacar rápido produce suaveo y agranda el influjo.'},
+       {t:'Bombear lodo por la tubería sin avisar a nadie',ok:false,f:'Primero se verifica si el pozo fluye, y se informa a la cuadrilla.'}]},
+   {x:'El flow check confirma que el pozo fluye.',alarm:true,fx:1,
+    ind:[['Flujo','Positivo','bad'],['Ganancia','+4,2 bbl','bad'],['FOSV','Instalada abierta','warn'],['Preventoras','Abiertas','warn']],
+    o:[{t:'Ordenar cerrar la FOSV y cerrar el pozo con la preventora según el procedimiento',ok:true,f:'Correcto. Se cierra el pozo de inmediato.'},
+       {t:'Esperar a ver si se detiene solo',ok:false,f:'Cada minuto entra más fluido y el control se hace más difícil.'},
+       {t:'Bajar la tubería al fondo antes de cerrar',ok:false,f:'Primero se cierra el pozo. Cualquier maniobra posterior la decide el plan de control.'}]},
+   {x:'El pozo está cerrado.',
+    ind:[['Pozo','Cerrado','ok'],['SIDPP','Estabilizando','warn'],['SICP','Estabilizando','warn'],['Ganancia','+5,3 bbl','warn']],
+    o:[{t:'Avisar al supervisor y registrar SIDPP, SICP, ganancia y hora',ok:true,f:'Correcto. Esos datos son la base del plan para matar el pozo.'},
+       {t:'Abrir un momento para ver si sigue fluyendo',ok:false,f:'Nunca se abre un pozo con influjo sin un plan de control.'},
+       {t:'Continuar el viaje con el pozo cerrado',ok:false,f:'No se mueve tubería sin la decisión del supervisor y el plan de control.'}]},
+  ]},
+  supervisor:{r:'Supervisor',brief:'Turno de noche. El perforador te llama a la cabina: están cerrando el pozo durante un viaje.',nodes:[
+   {x:'El perforador reporta pozo cerrado con 5,3 bbl de ganancia.',
+    ind:[['Pozo','Cerrado','ok'],['Ganancia','+5,3 bbl','warn'],['Cuadrilla','En sus puestos','ok'],['Company man','Sin informar','warn']],
+    o:[{t:'Verificar el cierre, esperar que las presiones se estabilicen, registrarlas e informar al representante de la operadora',ok:true,f:'Correcto. Verificar, registrar e informar.'},
+       {t:'Ordenar abrir el pozo para revisar',ok:false,f:'Abrir un pozo con influjo puede llevar a un reventón.'},
+       {t:'Decir que sigan el viaje',ok:false,f:'Con el pozo cerrado no se mueve tubería sin un plan de control.'}]},
+   {x:'Las presiones se estabilizan: SIDPP 350 psi, SICP 520 psi.',
+    ind:[['SIDPP','350 psi','warn'],['SICP','520 psi','warn'],['Lodo','10,4 lpg','ok'],['Profundidad','Según registro','ok']],
+    o:[{t:'Preparar la hoja de control: el peso del lodo de control se calcula con la SIDPP',ok:true,f:'Correcto. La SIDPP refleja la presión de la formación sin el efecto del influjo en el anular.'},
+       {t:'Calcular el peso del lodo de control con la SICP',ok:false,f:'La SICP está afectada por el influjo en el anular; para el lodo de control se usa la SIDPP.'},
+       {t:'No hace falta calcular: subir el peso a ojo',ok:false,f:'Un lodo demasiado pesado puede fracturar la formación; demasiado liviano no controla el pozo.'}]},
+   {x:'Antes de empezar a controlar el pozo:',
+    ind:[['Hoja de control','Lista','ok'],['Lodo de control','En preparación','warn'],['Cuadrilla','Esperando','warn'],['Comunicaciones','Por confirmar','warn']],
+    o:[{t:'Reunir a la cuadrilla: explicar el plan, los roles, los riesgos y las comunicaciones',ok:true,f:'Correcto. Todos deben saber qué va a pasar y qué hace cada uno.'},
+       {t:'Empezar sin explicar nada para ganar tiempo',ok:false,f:'Una cuadrilla que no conoce el plan comete errores en el peor momento.'},
+       {t:'Dejar que cada uno decida qué hacer',ok:false,f:'El control de pozo se hace con un plan y roles claros, dirigido por el supervisor.'}]},
+  ]},
+ },
+ h2s:{
+  supervisor:{r:'Supervisor',brief:'Estás en la oficina de la locación mientras se perfora una zona con posible gas.',nodes:[
+   {x:'Suena la alarma de H2S: 12 ppm en la mesa rotaria. La manga de viento indica viento del norte.',alarm:true,gas:1,
+    ind:[['H2S mesa','12 ppm','bad'],['Personal en locación','12','ok'],['Viento','Del norte','ok'],['Punto de encuentro','N.º 1, al norte','ok']],
+    o:[{t:'Activar el plan de emergencia: evacuar contra el viento al punto de encuentro 1 y hacer conteo de personal',ok:true,f:'Correcto. Evacuación y conteo, de inmediato.'},
+       {t:'Ir a la mesa a medir personalmente',ok:false,f:'Tu papel es dirigir la emergencia desde un lugar seguro, no exponerte.'},
+       {t:'Esperar a confirmar con un segundo detector',ok:false,f:'Ante una alarma de H2S se actúa primero y se confirma después.'}]},
+   {x:'El conteo da 11 de 12. Reportan a un compañero caído cerca de las zarandas.',alarm:true,gas:1,down:true,
+    ind:[['Personal','11 de 12','bad'],['Brigada','Disponible','ok'],['Equipo autónomo','En la caseta','warn'],['Emergencias externas','Sin avisar','warn']],
+    o:[{t:'Enviar a la brigada con equipo autónomo y en pareja, y avisar a los servicios de emergencia externos',ok:true,f:'Correcto. Rescate solo con protección respiratoria, y ayuda externa en camino.'},
+       {t:'Pedir a dos voluntarios que corran a sacarlo',ok:false,f:'Sin equipo autónomo, los rescatistas se vuelven víctimas.'},
+       {t:'Esperar a que el gas se disipe solo',ok:false,f:'Cada minuto cuenta para el compañero caído; el rescate se hace con el equipo adecuado.'}]},
+   {x:'El compañero fue rescatado y recibe atención. El detector de las zarandas baja a 4 ppm.',gas:.4,
+    ind:[['Personal','12 de 12','ok'],['H2S zarandas','4 ppm','warn'],['Atención médica','En curso','ok'],['Pozo','Por verificar','warn']],
+    o:[{t:'Mantener a todos en el punto de encuentro hasta medir el área y declararla segura, y luego investigar la causa',ok:true,f:'Correcto. El regreso se autoriza con medición, y el evento se investiga.'},
+       {t:'Ordenar volver a trabajar ya que bajó la lectura',ok:false,f:'Una lectura baja en un punto no significa que toda el área esté segura.'},
+       {t:'Dar el día por terminado sin reportar',ok:false,f:'Todo evento de H2S se reporta e investiga.'}]},
+  ]},
+ },
+};

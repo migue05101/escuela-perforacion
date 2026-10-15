@@ -439,15 +439,17 @@ async function modControl(opt){
   await result(Math.round(prac*.5+q*.5),`Hoja de viaje y simulacro: ${prac} puntos (${errs} error${errs===1?'':'es'}, ${secs} s). Evaluación: ${q} puntos.`)}
 
 /* ===================================================================== 6 · CASOS */
-async function stageCase(c){
-  if(c.stage==='kick'){setNight(true);tripSetup();RIG.slips.visible=true;lookFrom([7,F+3,8],[0,F+.6,0]);insAt(V(3,F,3.6))}
+async function stageCase(c,rk){
+  if(c.stage==='kick'){setNight(true);tripSetup();RIG.slips.visible=true;insAt(V(3,F,3.6));
+    if(rk==='encuellador')lookFrom([5,F+MONK+2.5,7],[0,F+MONK,0]);else if(rk==='perforador'||rk==='supervisor')lookFrom([-6.2,F+1.6,-1.6],[0,F+.8,0]);else if(rk==='patio')lookFrom([12,4,22],[0,F,0]);else lookFrom([7,F+3,8],[0,F+.6,0])}
   if(c.stage==='ladder'){RIG.climber.g.visible=true;RIG.climber.anim='climb';lookFrom([14,F+2,6],[2.8,F+6,-.35]);insAt(V(4.8,F,3.2))}
   if(c.stage==='gas'){lookFrom([4,6,-24],[13,2.4,-10]);insAt(V(8,0,-18));RIG.mudman.g.position.set(12.2,0,-13.5)}}
 function nodeFX(c,n){MODE.alarm=!!n.alarm;RIG.fx.spray=n.fx?.6:0;RIG.fx.gas=n.gas||0;
   if(n.climb!=null){const cl=RIG.climber,LX=y=>C(1,0,y).x+.62,y0=cl.g.position.y||.2,y1=Math.min(n.climb,MONK-.2);cl.anim='climb';tween(Math.max(.5,Math.abs(y1-y0)/1.4),p=>{const y=lerp(y0,y1,p);cl.g.position.set(LX(y),y,-.35)},()=>{cl.anim='idle';if(y1>=MONK-1){cl.g.position.set(-.2,MONK+.03,1.6);cl.g.rotation.y=Math.PI}})}
   if(n.down){RIG.mudman.anim='down'}}
-async function runCase(c){
-  resetScene();await stageCase(c);let first=0;
+async function runCase(c0){
+  const rk=roleKey(prof().role),rv=(CASE_ROLE[c0.id]||{})[rk];const c=rv?Object.assign({},c0,{r:rv.r,brief:rv.brief,nodes:rv.nodes}):c0;
+  resetScene();await stageCase(c,rk);let first=0;
   panel(head(`Caso · ${c.t}`,'Situación',`<p>${c.brief}</p><p class="muted">Tu rol: ${c.r}</p>`));await sayW(c.brief);
   for(let i=0;i<c.nodes.length;i++){const n=c.nodes[i];nodeFX(c,n);let miss=false;
     const hd=head(`${c.t} · decisión ${i+1} de ${c.nodes.length}`,n.x,`<div class="ind">${n.ind.map(([l,v,s])=>`<div class="${s}"><small>${l}</small><b>${v}</b></div>`).join('')}</div>`);
@@ -461,7 +463,7 @@ async function modCasos(){
   for(;;){const p=prof();const m=p.mods.casos||(p.mods.casos={});m.cases=m.cases||{};
     resetScene();lookFrom([40,24,46],[0,12,0]);
     const v=await ask(head('Simulación','Casos simulados','<p class="muted">Situaciones reales recreadas en el equipo. Cada decisión correcta al primer intento suma. Completa los tres para tu nota del módulo.</p>'),
-      CASES.map(c=>({t:`<b>${c.t}</b><br><span class="muted" style="font-size:13px">Rol: ${c.r}${m.cases[c.id]!=null?` · Último puntaje: ${m.cases[c.id]}`:''}</span>`,v:c.id})));
+      CASES.map(c=>({t:`<b>${c.t}</b><br><span class="muted" style="font-size:13px">Rol: ${((CASE_ROLE[c.id]||{})[roleKey(p.role)]||c).r}${m.cases[c.id]!=null?` · Último puntaje: ${m.cases[c.id]}`:''}</span>`,v:c.id})));
     const c=CASES.find(x=>x.id===v);await sayW('Caso: '+c.t+'.');const sc=await runCase(c);
     m.cases[c.id]=Math.max(m.cases[c.id]||0,sc);save();
     if(CASES.every(k=>m.cases[k.id]!=null)){const avg=Math.round(CASES.reduce((s,k)=>s+m.cases[k.id],0)/CASES.length);await result(avg,`Último caso: ${sc} puntos. Promedio de los tres casos: ${avg}.`);return}

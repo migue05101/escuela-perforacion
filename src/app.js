@@ -14,12 +14,24 @@ $('#profileList').addEventListener('click',e=>{const b=e.target.closest('button'
 $('#newProfile').addEventListener('submit',e=>{e.preventDefault();const n=$('#pName').value.trim();if(!n){toast('Escribe el nombre del aprendiz.');return}createProfile(n,$('#pRole').value)});
 function createProfile(name,role){const p={id:'p'+Date.now().toString(36),name,role,mods:{}};DB.profiles.push(p);DB.cur=p.id;save();$('#pName').value='';openHub()}
 $('#switchUser').addEventListener('click',()=>{renderLogin();show('s-login')});
+function modCard(p,id){const m=MODS.find(x=>x.id===id);const b=p.mods[m.id]?.best;const chip=b==null?'<span class="chip">Pendiente</span>':b>=PASS?'<span class="chip ok">Aprobado</span>':'<span class="chip warn">Repetir</span>';
+  return `<button class="mod" type="button" data-mod="${m.id}"><span class="num">${m.n}</span><span class="tag">${m.tag}</span><span><h3>${m.t}</h3><p>${m.d}</p></span><span class="foot">${chip}<span class="mono muted">${b==null?`~${m.min} min`:`Mejor: ${b}`}</span></span></button>`}
+$('#hubRoleSel').innerHTML=ROLES.map(r=>`<option>${r}</option>`).join('');
+$('#hubRoleSel').addEventListener('change',e=>{const p=prof();if(!p)return;p.role=e.target.value;save();openHub()});
 function openHub(){const p=prof();if(!p){renderLogin();show('s-login');return}
-  const xp=xpOf(p),done=MODS.filter(m=>(p.mods[m.id]?.best||0)>=PASS).length;
-  $('#hubName').textContent=p.name;$('#hubRole').textContent=p.role;$('#hubXp').textContent=xp;$('#hubLevel').textContent=levelOf(xp);$('#hubDone').textContent=`${done}/${MODS.length}`;
-  $('#hubBar').style.width=(xp/(MODS.length*100)*100)+'%';
-  $('#modGrid').innerHTML=MODS.map(m=>{const b=p.mods[m.id]?.best;const chip=b==null?'<span class="chip">Pendiente</span>':b>=PASS?'<span class="chip ok">Aprobado</span>':'<span class="chip warn">Repetir</span>';
-    return `<button class="mod" type="button" data-mod="${m.id}"><span class="num">${m.n}</span><span class="tag">${m.tag}</span><span><h3>${m.t}</h3><p>${m.d}</p></span><span class="foot">${chip}<span class="mono muted">${b==null?`~${m.min} min`:`Mejor: ${b}`}</span></span></button>`}).join('');
+  const rk=roleKey(p.role),R=ROUTE[rk],route=COMMON.concat(R.own);
+  const done=route.filter(id=>(p.mods[id]?.best||0)>=PASS).length,xp=xpOf(p);
+  $('#hubName').textContent=p.name;$('#hubRole').textContent=p.role;$('#hubXp').textContent=xp;$('#hubLevel').textContent=done>=route.length?'Ruta completa':done>=COMMON.length?'Tronco común listo':'En formación';$('#hubDone').textContent=`${done}/${route.length}`;
+  $('#hubRoleSel').value=p.role;
+  $('#hubBar').style.width=(done/route.length*100)+'%';
+  $('#hubRoleDesc').textContent=`Tu ruta: el tronco común para todo el personal y las prácticas propias de ${ROLE_INFO[rk].n.toLowerCase()}. Cada práctica empieza con una demostración narrada del instructor. Se aprueba con ${PASS} puntos o más.`;
+  const others=MODS.map(m=>m.id).filter(id=>!route.includes(id)&&!R.prev.includes(id));
+  const sec=(eb,right,txt,ids)=>ids.length?`<section class="sect"><div class="eyebrow"><span>${eb}</span><span class="muted">${right||''}</span></div>${txt?`<p>${txt}</p>`:''}<div class="mods">${ids.map(id=>modCard(p,id)).join('')}</div></section>`:'';
+  const cnt=ids=>`${ids.filter(id=>(p.mods[id]?.best||0)>=PASS).length} de ${ids.length} aprobados`;
+  $('#modGrid').innerHTML=sec('Tronco común',cnt(COMMON),'Lo que todo el personal del taladro debe saber, sin importar el cargo.',COMMON)
+    +sec('Tu cargo · '+ROLE_INFO[rk].n,cnt(R.own),ROLE_INFO[rk].d,R.own)
+    +sec('Repaso del cargo anterior','',R.prev.length?'Prácticas del cargo que normalmente se ocupa antes del tuyo. Conviene dominarlas.':'',R.prev)
+    +sec('Otros cargos','','Puedes practicarlos para conocer el trabajo de tus compañeros o prepararte para ascender.',others);
   show('s-hub');checkPlatforms()}
 $('#modGrid').addEventListener('click',e=>{const b=e.target.closest('[data-mod]');if(b)openModule(b.dataset.mod)});
 async function checkPlatforms(){const base=['Celular','Tablet','Computador'].map(t=>`<span class="chip ok">${t}</span>`);
@@ -28,7 +40,7 @@ async function checkPlatforms(){const base=['Celular','Tablet','Computador'].map
   $('#platforms').innerHTML=base.concat(vr,ar).join('')}
 function complete(id,score){const p=prof();const m=p.mods[id]||(p.mods[id]={});const prev=m.best;m.best=Math.max(prev||0,score);m.last=score;m.tries=(m.tries||0)+1;save();return{prev,best:m.best}}
 
-const SCRIPTS={hse:modHSE,taladro:modTaladro,rigup:modRigup,encuelle:modEncuelle,control:modControl,casos:modCasos};
+const SCRIPTS={hse:modHSE,taladro:modTaladro,rigup:modRigup,encuelle:modEncuelle,control:modControl,casos:modCasos,patio:modPatio,cunero:modCunero,lodo:modLodo,consola:modConsola,supervisor:modSupervisor};
 function openModule(id,opt){
   const m=MODS.find(x=>x.id===id);show('s-mod');$('#modTitle').textContent=`${m.n} · ${m.t}`;
   initEngine();resize();if(!RIG.home)saveHome();
