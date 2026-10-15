@@ -1,0 +1,1682 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Escuela de Perforación</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: cabina de control — escena 3D a la izquierda, panel de instrucción a la derecha; en celular vertical, escena arriba y panel abajo. Tema oscuro único: acero + ámbar de seguridad. */
+:root{
+  --bg:#141b21; --panel:#1b242c; --raise:#232e37; --line:#33424d;
+  --fg:#ebe6da; --muted:#9aa7ae; --accent:#f0a81c; --accent-ink:#1a1206;
+  --ok:#55b77d; --warn:#e9c046; --bad:#e2573f; --info:#62a8d4;
+  --glass:rgba(16,22,27,.84);
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;overflow:hidden}
+*{box-sizing:border-box}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05;letter-spacing:.01em}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.eyebrow{font-family:var(--display);text-transform:uppercase;letter-spacing:.14em;font-size:13px;color:var(--accent);font-weight:600}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.hazard{height:6px;background:repeating-linear-gradient(-45deg,var(--accent) 0 10px,#111 10px 20px)}
+#app{height:100%}
+.screen{height:100%}
+.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--raise);padding:10px 16px;border-radius:6px;font-weight:500;min-height:44px;user-select:none;-webkit-user-select:none}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{min-height:36px;padding:6px 12px;font-size:14px}
+.btn.hold{background:#7a2d1d;border-color:var(--bad);color:#fff;font-family:var(--display);font-size:22px;letter-spacing:.06em;text-transform:uppercase;min-height:64px;width:100%;touch-action:none}
+.btn.hold.on{background:var(--bad)}
+label.fld{display:grid;gap:6px;font-size:14px;color:var(--muted)}
+input[type=text],select{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:10px 12px;font:inherit;min-height:44px;width:100%}
+/* login */
+.login-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:40px;align-items:start}
+.brand h1{font-size:clamp(44px,8vw,84px);font-weight:700;text-transform:uppercase;margin-top:10px}
+.brand p{max-width:52ch;color:var(--muted);margin:14px 0 0}
+.brand svg{width:100%;max-width:420px;height:auto;margin-top:22px;display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px}
+.profiles{display:grid;gap:8px;margin:12px 0 18px}
+.prof{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.prof:hover{border-color:var(--accent)}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:18px;flex:none}
+.prof b{display:block}
+.prof small{color:var(--muted)}
+.form{display:grid;gap:12px}
+/* hub */
+.hub-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.hub-head h1{font-size:clamp(32px,5vw,48px);text-transform:uppercase}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-width:110px}
+.stat small{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.stat b{font-family:var(--display);font-size:24px}
+.progress{height:8px;background:var(--raise);border-radius:4px;overflow:hidden;margin:22px 0 8px}
+.progress i{display:block;height:100%;background:var(--accent);transition:width .4s}
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:22px}
+.mod{display:grid;grid-template-rows:auto auto 1fr auto;gap:8px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-height:200px}
+.mod:hover{border-color:var(--accent)}
+.mod .num{font-family:var(--display);font-size:42px;font-weight:700;color:var(--line);line-height:1}
+.mod:hover .num{color:var(--accent)}
+.mod h3{font-size:24px}
+.mod p{margin:0;color:var(--muted);font-size:14px}
+.mod .foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--line);color:var(--muted)}
+.chip.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 50%,transparent)}
+.chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,transparent)}
+.chip.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 50%,transparent)}
+.tag{font-family:var(--display);text-transform:uppercase;letter-spacing:.1em;font-size:12px;color:var(--info)}
+.platforms{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.note{font-size:13px;color:var(--muted);max-width:75ch;margin-top:26px;border-left:3px solid var(--line);padding-left:12px}
+/* módulo */
+#s-mod{display:grid;grid-template-columns:minmax(0,1fr) 390px;grid-template-rows:auto minmax(0,1fr)}
+.mtop{grid-column:1/-1;display:flex;align-items:center;gap:10px;background:var(--panel);border-bottom:1px solid var(--line);padding-block:8px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+.mtop h2{font-size:22px;text-transform:uppercase;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mtop .tools{display:flex;gap:6px;flex-wrap:nowrap}
+#view{position:relative;min-height:0;background:#b9c9d4;overflow:hidden}
+#view canvas{display:block;width:100%;height:100%;touch-action:none}
+#panel{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:18px max(16px,env(safe-area-inset-right,0px)) 32px 18px;min-width:0}
+#panel h3{font-size:26px;margin:4px 0 8px}
+#panel p{margin:0 0 12px}
+.hint{position:absolute;left:10px;top:10px;max-width:min(60%,520px);pointer-events:none}
+.hint span{display:inline-block;background:var(--glass);color:#ebe6da;padding:7px 11px;border-radius:6px;font-size:14px;border-left:3px solid var(--accent)}
+.cams{position:absolute;right:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:45%}
+.cams button{background:var(--glass);border:1px solid rgba(255,255,255,.18);color:#ebe6da;border-radius:6px;padding:5px 10px;font-size:13px;min-height:32px}
+.cams button:hover{border-color:var(--accent)}
+.sub{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:10px;align-items:flex-end;pointer-events:none}
+.sub .box{flex:1;min-width:0;background:var(--glass);border-radius:8px;padding:9px 12px;color:#ebe6da;pointer-events:auto;border:1px solid rgba(255,255,255,.08)}
+.sub .who{font-family:var(--display);text-transform:uppercase;letter-spacing:.1em;font-size:12px;color:var(--accent);display:flex;align-items:center;gap:8px}
+.sub .who i{width:8px;height:8px;border-radius:50%;background:#556;flex:none}
+.sub .who i.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.sub .txt{font-size:15px;line-height:1.4;max-height:4.3em;overflow-y:auto}
+.sub .ctl{display:flex;gap:6px;margin-left:auto}
+.sub .ctl button{background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:5px;color:#ebe6da;font-size:12px;padding:2px 8px;min-height:26px}
+.pip{width:150px;height:170px;flex:none;border-radius:8px;border:2px solid var(--accent);background:transparent;pointer-events:none}
+.gauge{position:absolute;right:14px;top:56px;bottom:150px;width:78px;display:grid;grid-template-rows:auto 1fr auto;gap:6px;justify-items:center;pointer-events:none}
+.gauge .lbl{background:var(--glass);color:#ebe6da;border-radius:6px;padding:4px 6px;font-size:11px;text-align:center;line-height:1.2}
+.gauge .track{position:relative;width:22px;background:var(--glass);border:1px solid rgba(255,255,255,.25);border-radius:4px}
+.gauge .band{position:absolute;left:0;right:0;background:color-mix(in srgb,var(--ok) 70%,transparent)}
+.gauge .mark{position:absolute;left:-8px;right:-8px;height:3px;background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.tip{position:absolute;pointer-events:none;background:var(--glass);color:#ebe6da;font-size:13px;padding:4px 8px;border-radius:5px;border:1px solid var(--accent);transform:translate(12px,12px);white-space:nowrap}
+.fade{position:absolute;inset:0;background:#0b0f12;opacity:0;pointer-events:none;transition:opacity .35s}
+.fade.on{opacity:1}
+.list{display:grid;gap:8px;margin:10px 0}
+.opt{text-align:left;background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px;line-height:1.35}
+.opt:hover{border-color:var(--accent)}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,var(--raise))}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--raise))}
+.fb{border-radius:8px;padding:10px 12px;margin:10px 0;font-size:14px;border:1px solid var(--line)}
+.fb.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.fb.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.fb.info{border-color:var(--info);background:color-mix(in srgb,var(--info) 10%,transparent)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px}
+.pchip{background:var(--raise);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;min-height:34px}
+.pchip.seen{border-color:var(--ok);color:var(--ok)}
+.pchip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.steps{list-style:none;padding:0;margin:8px 0 14px;display:grid;gap:5px;font-size:14px}
+.steps li{display:flex;gap:8px;align-items:baseline;color:var(--muted)}
+.steps li::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--line);flex:none;transform:translateY(1px)}
+.steps li.done{color:var(--fg)}
+.steps li.done::before{background:var(--ok)}
+.steps li.now{color:var(--fg);font-weight:600}
+.steps li.now::before{background:var(--accent)}
+.ind{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 14px}
+.ind div{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.ind small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.ind b{font-family:var(--mono);font-size:15px}
+.ind .warn b{color:var(--warn)} .ind .bad b{color:var(--bad)} .ind .ok b{color:var(--ok)}
+.ind .bad{border-color:var(--bad)}
+.meter{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:4px}
+.score{font-family:var(--display);font-size:72px;font-weight:700;line-height:1}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 4px;text-align:right;font-family:var(--mono)}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl th{font-family:var(--body);color:var(--muted);font-weight:500}
+.tbl tr.cur td{color:var(--accent)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--raise);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;max-width:min(92vw,520px);font-size:14px;z-index:20;box-shadow:0 8px 24px #0008}
+@media (max-width:860px){
+  .login-grid{grid-template-columns:minmax(0,1fr)}
+  .brand svg{display:none}
+  #s-mod{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 52% minmax(0,1fr)}
+  #panel{border-left:0;border-top:1px solid var(--line);padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .pip{width:96px;height:112px}
+  .sub .txt{font-size:13px}
+  .mtop .tools .opt-l{display:none}
+}
+@media (max-height:520px) and (orientation:landscape){
+  #s-mod{grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:auto minmax(0,1fr)}
+  #panel{border-top:0;border-left:1px solid var(--line);font-size:14px}
+  #panel h3{font-size:21px}
+  .mtop h2{font-size:18px}
+  .pip{width:84px;height:96px}
+  .gauge{bottom:110px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div id="app">
+<section id="s-login" class="screen scroll">
+  <div class="hazard"></div>
+  <div class="wrap">
+    <div class="login-grid">
+      <div class="brand">
+        <div class="eyebrow">Programa de inducción · Taladro de perforación</div>
+        <h1>Escuela de Perforación</h1>
+        <p>Formación práctica en primera persona para personal nuevo de campo, guiada por un instructor: equipo de protección, armado del taladro, encuelle, control de pozo y casos simulados. Funciona en celular, tablet y computador, y en gafas Meta Quest (VR) y realidad aumentada.</p>
+        <svg viewBox="0 0 420 230" aria-hidden="true">
+          <g fill="none" stroke="#33424d" stroke-width="2"><path d="M150 200 L192 20 L228 20 L270 200"/><path d="M160 160 L260 160 M168 120 L252 120 M176 84 L244 84 M184 52 L236 52"/><path d="M160 160 L252 120 L176 84 L236 52 M260 160 L168 120 L244 84 L184 52"/></g>
+          <rect x="186" y="10" width="48" height="12" fill="#f0a81c"/><rect x="224" y="62" width="44" height="5" fill="#f0a81c"/>
+          <line x1="210" y1="22" x2="210" y2="110" stroke="#9aa7ae" stroke-width="1.5"/><rect x="202" y="110" width="16" height="22" fill="#e8b923"/>
+          <rect x="110" y="200" width="200" height="16" fill="#33424d"/><rect x="40" y="216" width="340" height="3" fill="#33424d"/>
+          <g fill="#9aa7ae"><rect x="320" y="206" width="70" height="3"/><rect x="320" y="200" width="70" height="3"/><rect x="320" y="194" width="70" height="3"/></g>
+        </svg>
+      </div>
+      <div class="card">
+        <h2 style="font-size:28px;text-transform:uppercase">Ingreso de aprendiz</h2>
+        <div id="profileList" class="profiles"></div>
+        <form id="newProfile" class="form">
+          <label class="fld">Nombre completo<input id="pName" type="text" autocomplete="name" placeholder="Ej. Andrés Rojas"></label>
+          <label class="fld">Cargo al que ingresa<select id="pRole"></select></label>
+          <button class="btn primary" type="submit">Crear perfil y entrar</button>
+        </form>
+        <p class="muted" style="font-size:13px;margin:14px 0 0">Los perfiles y el progreso se guardan en este dispositivo. Activa el sonido: el instructor habla.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="s-hub" class="screen scroll" hidden>
+  <div class="hazard"></div>
+  <div class="wrap">
+    <div class="hub-head">
+      <div><div class="eyebrow" id="hubRole"></div><h1 id="hubName"></h1></div>
+      <div class="stats">
+        <div class="stat"><small>Puntos</small><b class="mono" id="hubXp">0</b></div>
+        <div class="stat"><small>Nivel</small><b id="hubLevel">—</b></div>
+        <div class="stat"><small>Aprobados</small><b class="mono" id="hubDone">0/6</b></div>
+        <button class="btn ghost sm" id="switchUser" type="button">Cambiar aprendiz</button>
+      </div>
+    </div>
+    <div class="progress"><i id="hubBar" style="width:0"></i></div>
+    <div class="muted" style="font-size:13px">Ruta recomendada: del módulo 1 al 6. Cada práctica empieza con una demostración narrada del instructor. Se aprueba con 70 puntos o más.</div>
+    <div class="mods" id="modGrid"></div>
+    <div style="margin-top:28px"><div class="eyebrow">Plataformas</div><div class="platforms" id="platforms"></div></div>
+    <p class="note">Prototipo de formación. Los procedimientos son esquemas generales de referencia: antes de uso formal deben validarse con el instructor HSE, el procedimiento escrito de cada equipo y la certificación correspondiente (por ejemplo IWCF / IADC WellSharp en control de pozo y curso de trabajo en alturas vigente).</p>
+  </div>
+</section>
+
+<section id="s-mod" class="screen" hidden>
+  <header class="mtop">
+    <button class="btn sm ghost" id="backHub" type="button">← Módulos</button>
+    <h2 id="modTitle"></h2>
+    <div class="tools">
+      <button class="btn sm opt-l" id="btnQ" type="button">Gráficos: alto</button>
+      <button class="btn sm" id="btnVoice" type="button">Voz: sí</button>
+      <button class="btn sm" id="btnVR" type="button">VR</button>
+      <button class="btn sm" id="btnAR" type="button">AR</button>
+    </div>
+  </header>
+  <div id="view">
+    <div class="hint" id="hint" hidden><span id="hintText"></span></div>
+    <div class="cams" id="cams">
+      <button type="button" data-cam="general">General</button>
+      <button type="button" data-cam="piso">Piso</button>
+      <button type="button" data-cam="encuelladero">Encuelladero</button>
+      <button type="button" data-cam="bop">BOP</button>
+    </div>
+    <div class="gauge" id="gauge" hidden>
+      <div class="lbl" id="gTitle">Elevador<br><b class="mono" id="gVal">0,0 m</b></div>
+      <div class="track"><div class="band" id="gBand"></div><div class="mark" id="gMark"></div></div>
+      <div class="lbl" id="gFoot">Piso 0 m</div>
+    </div>
+    <div class="tip" id="tip" hidden></div>
+    <div class="sub" id="sub">
+      <div class="pip" id="pip"></div>
+      <div class="box">
+        <div class="who"><i id="talkDot"></i>Ing. Ramiro Cárdenas · Instructor<span class="ctl"><button type="button" id="subRepeat">Repetir</button><button type="button" id="subSkip">Saltar</button></span></div>
+        <div class="txt" id="subText">—</div>
+      </div>
+    </div>
+    <div class="fade" id="fade"></div>
+  </div>
+  <aside id="panel"></aside>
+</section>
+<div id="toast" hidden></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+/* ===================================================================== DATOS */
+const ROLES=['Obrero de patio','Cuñero','Encuellador','Perforador','Supervisor / instructor'];
+const PASS=70;
+const MODS=[
+ {id:'hse',n:'01',t:'Inducción HSE y EPP',d:'Ponte el EPP, ubícate fuera de la línea de fuego y evacúa ante una alarma de H2S, en primera persona.',tag:'Práctica guiada · Evaluación',min:20},
+ {id:'taladro',n:'02',t:'Conoce el taladro',d:'El instructor te acompaña por cada componente del equipo y te explica para qué sirve.',tag:'Recorrido narrado · Evaluación',min:20},
+ {id:'rigup',n:'03',t:'Armado del equipo',d:'Mira cómo se arma el taladro con la grúa y luego dirige tú el armado: bajar, pinear e izar el mástil.',tag:'Demostración · Práctica 3D',min:30},
+ {id:'encuelle',n:'04',t:'Encuelle: sacar tubería',d:'Sube al encuelladero en primera persona: detén el bloque, enlaza la parada y guárdala en los peines.',tag:'Demostración · 1.ª persona',min:30},
+ {id:'control',n:'05',t:'Control de pozo básico',d:'Mira cómo entra una patada al pozo, lleva la hoja de viaje y haz el simulacro de cierre en el piso.',tag:'Animación · Simulacro',min:30},
+ {id:'casos',n:'06',t:'Casos simulados',d:'Patada en viaje, trabajo en alturas y alarma de H2S. Decide bajo presión.',tag:'Simulación',min:25},
+];
+
+/* Componentes: narración del instructor, cámara y lugar donde se para el instructor */
+const PARTS={
+ cellar:{n:'Contrapozo y cabezal',cam:[5,2.6,6.5],tgt:[0,-1,0],st:[2.6,0,2.9],
+  narr:'Este es el contrapozo: una excavación revestida en concreto justo debajo de la mesa rotaria. Adentro queda el cabezal del pozo, la base sobre la que se instalan las preventoras. Ojo: el contrapozo es un espacio confinado. Ahí se pueden acumular gases como el H2S, y no se entra sin permiso de trabajo y sin medir la atmósfera.'},
+ sub:{n:'Subestructura',cam:[18,7,19],tgt:[0,3.5,0],st:[7.4,0,8.2],
+  narr:'La subestructura es el pedestal del taladro. Levanta el piso de perforación unos siete metros y medio, para que debajo quepan las preventoras. Carga todo el peso: la sarta colgando del gancho y la tubería parada en el setback. Va asentada sobre esteras de madera que reparten la carga en el terreno.'},
+ floor:{n:'Piso de perforación y mesa rotaria',cam:[6.5,12.2,9.5],tgt:[0,7.6,0],st:[2.4,7.6,3.2],
+  narr:'Este es el piso de perforación, el sitio de trabajo de los cuñeros. En el centro está la mesa rotaria, donde se sientan las cuñas para sostener la sarta. A un lado está el setback, donde se paran las paradas de tubería, y aquí cuelgan las llaves de fuerza. Es zona roja: solo entra el personal autorizado, siempre con todo el EPP.'},
+ drawworks:{n:'Malacate',cam:[5.5,11,-0.5],tgt:[0,8.9,-4.7],st:[2.9,7.6,-2.6],
+  narr:'El malacate es el corazón del sistema de izaje. Su tambor enrolla el cable de perforación, y el perforador lo controla desde la cabina para subir y bajar toda la sarta. Durante el armado es el mismo malacate el que iza el mástil.'},
+ doghouse:{n:'Cabina del perforador',cam:[-0.5,10.5,5],tgt:[-7.2,9,-2.2],st:[-4.2,7.6,0.4],
+  narr:'Esta es la cabina del perforador. Desde aquí se controlan el malacate, el top drive y las bombas, y se vigilan el peso en el gancho, las presiones y el volumen de los tanques. El perforador es el jefe del piso: toda maniobra se coordina con él, por radio o con señales.'},
+ mast:{n:'Mástil',cam:[34,26,44],tgt:[0,26,0],st:[4.6,7.6,4.6],
+  narr:'El mástil mide unos cuarenta y tres metros. Sostiene el bloque corona y, a través del cable, todo el peso que cuelga del gancho. Se arma acostado sobre el terreno y se iza con el malacate. Por la escalera con jaula sube el encuellador, siempre conectado al bloque retráctil.'},
+ crown:{n:'Bloque corona',cam:[9,55,11],tgt:[0,51,0],st:[4.6,7.6,4.6],
+  narr:'En la punta del mástil está el bloque corona, un juego de poleas fijas. El cable de perforación pasa varias veces entre la corona y el bloque viajero; eso multiplica la fuerza del malacate y permite levantar cientos de miles de libras.'},
+ monkey:{n:'Encuelladero',cam:[5.5,37.6,8],tgt:[-0.6,34.6,1.8],st:[0.2,34.2,2.9],
+  narr:'Esta plataforma es el encuelladero, también llamado changuero. Está a unos veintisiete metros sobre el piso, justo a la altura de la punta de una parada. Aquí trabaja el encuellador: enlaza la parada con la cuerda y la guarda entre los peines. Siempre conectado a la línea de vida y con las herramientas amarradas.'},
+ block:{n:'Bloque viajero y top drive',cam:[7,18,10],tgt:[0,13,0],st:[2.4,7.6,3.2],
+  narr:'Este es el bloque viajero con el top drive. El bloque sube y baja colgado del cable. El top drive, debajo, es un motor que hace girar la sarta y por donde entra el lodo. Abajo, colgando de los brazos, está el elevador: la abrazadera que agarra la tubería por debajo de la unión para subirla o bajarla.'},
+ bop:{n:'Preventoras (BOP)',cam:[4.6,1.8,5],tgt:[0,1.3,0],st:[2.6,0,2.9],
+  narr:'Este conjunto son las preventoras, o BOP. Arriba está la preventora anular, que cierra alrededor de cualquier forma de tubería; debajo están las de arietes, que cierran sobre el tubo o sellan el pozo completo. Se operan con presión hidráulica desde el acumulador, ese equipo de botellas rojas. Son la última barrera para evitar un reventón.'},
+ mud:{n:'Sistema de lodo',cam:[7,10,-24],tgt:[15,2,-6],st:[11.6,0,-13],
+  narr:'Este es el sistema de lodo. Las bombas mandan el lodo por el tubo vertical y la manguera hasta el top drive; baja por dentro de la sarta, sale por la broca y regresa por el espacio anular. Las zarandas separan los cortes de roca. El peso del lodo es la primera barrera para controlar el pozo.'},
+ rack:{n:'Burros de tubería y planchada',cam:[11,7,34],tgt:[0,1,18],st:[2.4,0,13.5],
+  narr:'Estos son los burros de tubería y la planchada. La tubería se inspecciona, se mide y se numera en los burros; por la rampa sube hasta la puerta en V del piso. Al mover tubería, nadie se ubica en la trayectoria de la carga.'},
+};
+
+/* Armado: prerequisitos, narración de la demostración, quién lo hace y tipo de interacción */
+const RIGUP=[
+ {k:'cellar',t:'Contrapozo y cabezal del pozo',pre:[],kind:'appear',who:'Obra civil · cuadrilla de patio',
+  why:'Todo el taladro se alinea con el centro del pozo, así que el contrapozo va primero.',
+  narr:'Todo empieza en el terreno. La obra civil construye la locación y el contrapozo, y se instala el cabezal sobre el revestimiento conductor. Todo el taladro se alineará con este centro.'},
+ {k:'sub',t:'Subestructura',pre:['cellar'],kind:'crane',pins:true,who:'Operador de grúa · señalero · cuadrilla de patio',
+  why:'La subestructura se centra sobre el contrapozo.',
+  narr:'Sobre esteras de madera se ubica la subestructura, centrada sobre el contrapozo. La grúa la baja despacio, y el señalero es la única persona que da órdenes al operador de la grúa. Nadie se para debajo de la carga.'},
+ {k:'floor',t:'Piso de perforación y mesa rotaria',pre:['sub'],kind:'crane',pins:true,who:'Señalero · cuñeros · tool pusher',
+  why:'El piso se monta encima de la subestructura.',
+  narr:'Encima va el piso de perforación con la mesa rotaria y el setback. Se pinea a la subestructura, y cada pasador queda asegurado con su chaveta.'},
+ {k:'drawworks',t:'Malacate',pre:['floor'],kind:'crane',who:'Señalero · mecánico · electricista',
+  why:'El malacate se instala sobre el piso y se necesita para izar el mástil.',
+  narr:'El malacate se ubica en el piso, del lado opuesto a la puerta en V. El mecánico y el electricista lo conectan. Sin malacate no se puede izar el mástil.'},
+ {k:'doghouse',t:'Cabina del perforador',pre:['floor'],kind:'crane',who:'Señalero · electricista',
+  why:'La cabina va al nivel del piso, con vista a la mesa rotaria.',
+  narr:'La cabina del perforador se instala a un lado del piso, con vista directa a la mesa rotaria.'},
+ {k:'mast',t:'Mástil (armado acostado)',pre:['floor'],kind:'crane',pins:true,who:'Operador de grúa · señalero · cuadrilla',
+  why:'El mástil se arma acostado y se pinea a las zapatas del piso, que serán su bisagra.',
+  narr:'El mástil llega por secciones y se arma acostado. Se pinea a las zapatas del piso, que van a funcionar como bisagra en el izado.'},
+ {k:'crown',t:'Corona y encuelladero',pre:['mast'],kind:'crane',pins:true,who:'Señalero · cuadrilla con arnés',
+  why:'Se montan con el mástil acostado: es mucho más seguro trabajar a un metro del suelo que a cuarenta.',
+  narr:'Con el mástil todavía abajo se montan la corona y el encuelladero. Es mucho más seguro trabajar a un metro del suelo que a cuarenta.'},
+ {k:'block',t:'Guarnir el cable y colgar el top drive',pre:['crown','drawworks'],kind:'string',who:'Perforador · encuellador · cuñeros',
+  why:'El cable sale del malacate, pasa entre la corona y el bloque y termina en el ancla de la línea muerta: necesitas la corona y el malacate.',
+  narr:'Ahora se guarne el cable: sale del malacate, pasa varias veces entre la corona y el bloque viajero y termina en el ancla de la línea muerta. Se cuelga el top drive.'},
+ {k:'raise',t:'Izar el mástil',pre:['block','drawworks'],kind:'raise',who:'Perforador · tool pusher · todo el personal despejado',
+  why:'El mástil se iza con el malacate a través del cable ya guarnido.',
+  narr:'Llega el momento más crítico: el izado del mástil. Se despeja el área, nadie debajo del mástil ni en la línea del cable. El perforador iza con el malacate, despacio y sin detenerse, mientras el tool pusher supervisa. Al quedar vertical se asegura con los pasadores.'},
+ {k:'bop',t:'Conjunto de preventoras (BOP)',pre:['raise'],kind:'trolley',who:'Cuadrilla · tool pusher',
+  why:'Las preventoras se instalan sobre el cabezal, ya con el equipo armado, y se prueban antes de perforar.',
+  narr:'Con el mástil arriba se instalan las preventoras sobre el cabezal y se conectan al acumulador. Antes de perforar se prueban a presión.'},
+ {k:'mud',t:'Sistema de lodo: tanques y bombas',pre:['sub'],kind:'crane',who:'Señalero · cuadrilla de patio · mecánico',
+  why:'El sistema de lodo se ubica una vez definida la posición de la subestructura.',
+  narr:'Se ubican los tanques de lodo, las zarandas y las bombas, y se conectan la línea de flote y el tubo vertical.'},
+ {k:'rack',t:'Planchada y burros de tubería',pre:['floor'],kind:'crane',who:'Señalero · cuadrilla de patio',
+  why:'La planchada se alinea con la puerta en V del piso.',
+  narr:'Por último, la planchada y los burros de tubería, alineados con la puerta en V. El equipo queda listo para iniciar la perforación, el spud.'},
+];
+
+const QUIZ={
+ hse:[
+  {q:'¿Desde qué altura aplica en Colombia la norma de trabajo en alturas (Res. 4272 de 2021)?',o:['1,0 m','2,0 m','5,0 m'],a:1,e:'La norma vigente aplica para trabajos a 2,0 m o más sobre el nivel inferior.'},
+  {q:'¿Quién puede detener un trabajo que considera inseguro?',o:['Solo el supervisor HSE','Solo el perforador','Cualquier persona en la locación'],a:2,e:'La autoridad para detener es de todos, sin represalias.'},
+  {q:'¿Cuál de estos elementos NO debes llevar en el piso de perforación?',o:['Overol ignífugo','Anillos y reloj','Protección auditiva'],a:1,e:'Los anillos y el reloj se enganchan en llaves, cuñas y cables. Pueden costar un dedo.'},
+  {q:'Suena la alarma de H2S. ¿Hacia dónde evacúas?',o:['Hacia el contrapozo, que está más cerca','Contra el viento o en dirección cruzada, al punto de encuentro','A favor del viento, para alejarte rápido'],a:1,e:'Contra el viento o cruzado. El H2S es más pesado que el aire y se acumula en zonas bajas como el contrapozo.'},
+  {q:'Se está izando una carga con la grúa. ¿Dónde te ubicas?',o:['Debajo, para guiarla con la mano','Fuera de la trayectoria de la carga, guiándola con cabo','Entre la carga y el burro de tubería'],a:1,e:'Nunca bajo cargas suspendidas ni en su trayectoria: se guía con cabo desde una posición segura.'},
+ ],
+ taladro:[
+  {q:'¿Dónde trabaja el encuellador durante un viaje de tubería?',o:['En la cabina del perforador','En el encuelladero, en el mástil','En el contrapozo'],a:1,e:'El encuellador trabaja en el encuelladero (changuero), donde asegura las paradas en los peines.'},
+  {q:'¿Qué equipo sube y baja la sarta enrollando el cable de perforación?',o:['El malacate','Las bombas de lodo','La mesa rotaria'],a:0,e:'El malacate enrolla el cable que pasa por la corona y el bloque viajero.'},
+  {q:'¿Para qué sirven las preventoras (BOP)?',o:['Para mezclar el lodo','Para cerrar el pozo si entra un influjo','Para enroscar la tubería'],a:1,e:'Las BOP cierran el pozo cuando ocurre una patada.'},
+  {q:'Una parada de tubería de perforación normalmente está formada por…',o:['Un tubo de unos 9 m','Tres tubos, unos 27–28 m','Diez tubos, unos 90 m'],a:1,e:'En equipos con mástil para triples, la parada son tres tubos (≈ 27–28 m); por eso el encuelladero queda a esa altura.'},
+  {q:'¿Qué función cumplen las cuñas en la mesa rotaria?',o:['Sostener la sarta mientras se conecta o desconecta','Medir el peso en el gancho','Limpiar el lodo de la tubería'],a:0,e:'Las cuñas sostienen la sarta en la mesa mientras la conexión está abierta.'},
+ ],
+ control:[
+  {q:'¿Cuál es una señal directa de que el pozo puede estar recibiendo una patada?',o:['Aumento del volumen en los tanques de lodo','Aumento del ruido del generador','Baja la temperatura en la noche'],a:0,e:'La ganancia en tanques y el aumento del flujo de retorno son indicadores directos.'},
+  {q:'Sacando tubería, el pozo toma menos lodo del que indica la hoja de viaje. ¿Qué significa?',o:['Todo está bien, el pozo está estable','Puede estar entrando fluido de la formación','Hay que sacar más rápido'],a:1,e:'Si el pozo recibe menos lodo del calculado, algo más está ocupando ese espacio: posible influjo.'},
+  {q:'Durante un viaje, el pozo fluye. ¿Qué se instala primero en la tubería?',o:['La válvula de seguridad (FOSV) abierta, y luego se cierra','Un tapón de caucho','Nada, se cierra solo la anular'],a:0,e:'La FOSV se instala abierta para poder enroscarla aunque haya flujo, y luego se cierra.'},
+  {q:'¿Qué es el suaveo (pistoneo)?',o:['Lubricar la tubería al sacarla','Succionar fluido de la formación al sacar tubería muy rápido','Aumentar el peso del lodo'],a:1,e:'Sacar rápido crea un efecto pistón que reduce la presión en el fondo y puede provocar una patada.'},
+  {q:'Con el pozo cerrado, ¿qué se registra?',o:['Las presiones de cierre (SIDPP y SICP) y la ganancia','La hora del almuerzo','Solo la profundidad'],a:0,e:'Esas lecturas permiten calcular cómo matar el pozo.'},
+ ]
+};
+
+const CASES=[
+ {id:'patada',t:'Patada durante un viaje',r:'Cuñero',stage:'kick',brief:'Turno de noche. Están sacando tubería para cambiar la broca. Tú llevas la hoja de viaje en el piso.',nodes:[
+   {x:'Van 34 paradas fuera. El tanque de viaje no baja lo que debería según la hoja de viaje.',fx:0,
+    ind:[['Tanque de viaje','+1,8 bbl desfase','warn'],['Paradas fuera','34 / 92','ok'],['Peso en gancho','86 klb','ok'],['Bombas','Apagadas','ok']],
+    o:[{t:'Seguir sacando; al final del viaje se revisa la hoja',ok:false,f:'Ese desfase es una alerta temprana. Seguir sacando puede agrandar el influjo.'},
+       {t:'Avisar al perforador: detener el viaje y hacer flow check',ok:true,f:'Correcto. Se detiene el viaje y se observa si el pozo fluye.'},
+       {t:'Sacar más rápido para terminar antes del cambio de turno',ok:false,f:'Sacar rápido produce suaveo y empeora la situación.'}]},
+   {x:'Flow check: el pozo fluye por dentro de la tubería y por el anular.',fx:1,alarm:true,
+    ind:[['Ganancia','+4,2 bbl','bad'],['Flujo','Fluye con bombas apagadas','bad'],['Sarta','En cuñas','ok'],['FOSV','En el piso, abierta','warn']],
+    o:[{t:'Instalar la FOSV abierta en la tubería y cerrarla',ok:true,f:'Correcto. Se enrosca abierta para poder instalarla con flujo, y luego se cierra.'},
+       {t:'Cerrar la preventora anular y dejar la tubería abierta',ok:false,f:'El pozo también fluye por dentro de la tubería. Sin FOSV queda abierto por ahí.'},
+       {t:'Salir corriendo a la cabina a contar lo que pasa',ok:false,f:'Avisa por radio y quédate en tu puesto: en el piso eres quien instala la válvula.'}]},
+   {x:'FOSV instalada y cerrada. El flujo por la tubería se detuvo, pero sigue saliendo por el anular.',fx:1,alarm:true,
+    ind:[['Ganancia','+5,0 bbl','bad'],['FOSV','Cerrada','ok'],['Anular','Fluye','bad'],['Preventoras','Abiertas','warn']],
+    o:[{t:'Cerrar la preventora indicada en el procedimiento del equipo',ok:true,f:'Correcto. Con eso el pozo queda cerrado.'},
+       {t:'Abrir el elevador y bajar el bloque para ganar tiempo',ok:false,f:'Ahora mismo lo único prioritario es cerrar el pozo.'},
+       {t:'Llenar el pozo con más lodo desde el tanque de viaje',ok:false,f:'El pozo está fluyendo: primero se cierra, después se planea cómo matarlo.'}]},
+   {x:'El pozo está cerrado.',fx:0,
+    ind:[['Ganancia','+5,3 bbl','warn'],['Pozo','Cerrado','ok'],['SIDPP','Por registrar','warn'],['SICP','Por registrar','warn']],
+    o:[{t:'Notificar al supervisor y registrar SIDPP, SICP y ganancia',ok:true,f:'Correcto. Con esos datos se planea el control del pozo.'},
+       {t:'Abrir un momento para ver si todavía fluye',ok:false,f:'Nunca. Abrir un pozo con influjo puede llevar a un reventón.'},
+       {t:'Seguir el viaje con el pozo cerrado',ok:false,f:'No se mueve tubería sin el plan del supervisor.'}]},
+ ]},
+ {id:'alturas',t:'Compañero sin anticaídas',r:'Cuñero',stage:'ladder',brief:'Cambio de turno. Se prepara un viaje y el encuellador nuevo va a subir al encuelladero.',nodes:[
+   {x:'El encuellador nuevo empieza a subir por la escalera del mástil sin conectar el bloque retráctil.',climb:3,
+    ind:[['Altura','3 m','warn'],['Bloque retráctil','Sin conectar','bad'],['Viento','Moderado','ok'],['Permiso de alturas','Firmado','ok']],
+    o:[{t:'Usar la autoridad para detener: avisarle de inmediato y al perforador por radio',ok:true,f:'Correcto. Cualquiera puede detener un trabajo inseguro.'},
+       {t:'Esperar a que llegue arriba y decirle después',ok:false,f:'Una caída puede pasar en cualquier peldaño. Se detiene ya.'},
+       {t:'No decir nada: no es tu tarea',ok:false,f:'La seguridad es tarea de todos. Callar también es una decisión.'}]},
+   {x:'Se detuvo en la escalera, a unos 8 metros.',climb:8,
+    ind:[['Altura','8 m','bad'],['Bloque retráctil','Sin conectar','bad'],['Comunicación','Por radio','ok'],['Perforador','Enterado','ok']],
+    o:[{t:'Que baje rápido sin conectarse',ok:false,f:'Bajar sin protección tiene el mismo riesgo que subir.'},
+       {t:'Que se conecte al bloque retráctil, verifique el arnés y luego continúe',ok:true,f:'Correcto. Primero la protección, luego la tarea.'},
+       {t:'Subir tú a ayudarle sin conectarte para ir más rápido',ok:false,f:'Así serían dos personas expuestas.'}]},
+   {x:'Ya llegó al encuelladero.',climb:27,
+    ind:[['Altura','27,2 m','warn'],['Línea de vida','Por conectar','warn'],['Herramientas','Sueltas','bad'],['Viaje','En espera','ok']],
+    o:[{t:'Que se conecte a la línea de vida y amarre las herramientas con cordón antes del viaje',ok:true,f:'Correcto. Una llave que cae desde 27 metros puede matar a alguien en el piso.'},
+       {t:'Empezar el viaje ya; las herramientas se amarran después',ok:false,f:'La caída de objetos es uno de los mayores riesgos para el piso.'},
+       {t:'Dejar las herramientas en el borde del encuelladero',ok:false,f:'Una herramienta suelta en el borde es un objeto que va a caer.'}]},
+ ]},
+ {id:'h2s',t:'Alarma de H2S',r:'Obrero de patio',stage:'gas',brief:'Estás ayudando en las zarandas mientras se perfora una zona con posible gas.',nodes:[
+   {x:'Suena la alarma de H2S. El detector de la mesa rotaria marca 12 ppm. La manga de viento indica viento del norte.',alarm:true,gas:1,
+    ind:[['H2S mesa','12 ppm','bad'],['H2S zarandas','6 ppm','warn'],['Viento','Del norte','ok'],['Punto de encuentro','N.º 1, al norte','ok']],
+    o:[{t:'Ir a la mesa a ver de dónde sale el gas',ok:false,f:'Ir hacia la fuente te expone. La prioridad es salir.'},
+       {t:'Suspender y evacuar contra el viento hacia el punto de encuentro',ok:true,f:'Correcto. Contra el viento o cruzado, nunca a zonas bajas.'},
+       {t:'Ponerte un tapabocas y seguir trabajando',ok:false,f:'Un tapabocas no protege contra el H2S.'}]},
+   {x:'En el punto de encuentro falta un compañero. Lo ves caído cerca de las zarandas.',alarm:true,gas:1,down:true,
+    ind:[['Personal','11 de 12','bad'],['H2S zarandas','Subiendo','bad'],['Brigada','En camino','warn'],['Equipo autónomo','En la caseta','warn']],
+    o:[{t:'Correr a sacarlo aguantando la respiración',ok:false,f:'Así ocurren las segundas víctimas. Muchas muertes por H2S son de rescatistas sin equipo.'},
+       {t:'Avisar al supervisor y a la brigada; el rescate solo con equipo autónomo y personal entrenado',ok:true,f:'Correcto. Rescate con equipo de respiración autónomo y en pareja.'},
+       {t:'Esperar a que deje de oler y entonces ir',ok:false,f:'El H2S paraliza el olfato: que no huela no significa que no esté.'}]},
+   {x:'La brigada lo rescata con equipo autónomo y le da primeros auxilios.',gas:0.4,
+    ind:[['Personal','12 de 12','ok'],['H2S zarandas','Midiendo','warn'],['Atención médica','En curso','ok'],['Área','Restringida','warn']],
+    o:[{t:'Volver a las zarandas: ya pasó la emergencia',ok:false,f:'Nadie regresa hasta que el área se mida y se declare segura.'},
+       {t:'Quedarse en el punto de encuentro hasta que el supervisor declare el área segura con medición',ok:true,f:'Correcto. El regreso lo autoriza el supervisor con medición.'},
+       {t:'Ir a la caseta por tus cosas',ok:false,f:'Sigue en el punto de encuentro hasta recibir la orden.'}]},
+ ]},
+];
+
+/* Elementos de la mesa de EPP */
+const EPP=[
+ {k:'casco',n:'Casco',ok:true,f:'Casco puesto, con barbuquejo. Protege de golpes y objetos que caen.'},
+ {k:'gafas',n:'Gafas de seguridad',ok:true,f:'Gafas puestas. Protegen de lodo y partículas.'},
+ {k:'auditiva',n:'Protección auditiva',ok:true,f:'Protección auditiva. En el piso el ruido de motores y bombas daña el oído.'},
+ {k:'guantes',n:'Guantes de impacto',ok:true,f:'Guantes de impacto. Protegen los dedos en puntos de pellizco.'},
+ {k:'botas',n:'Botas con puntera',ok:true,f:'Botas con puntera. Protegen de tubos y herramientas que caen.'},
+ {k:'overol',n:'Overol ignífugo',ok:true,f:'Overol ignífugo, con cintas reflectivas.'},
+ {k:'reloj',n:'Reloj',ok:false,f:'El reloj no. Se engancha en llaves, cuñas y cables, y puede arrancarte la mano.'},
+ {k:'anillo',n:'Anillo',ok:false,f:'Nada de anillos. Un anillo enganchado puede costar un dedo.'},
+ {k:'cadena',n:'Cadena',ok:false,f:'La cadena se queda en la caseta: se enreda en equipos que giran.'},
+ {k:'gorra',n:'Gorra de tela',ok:false,f:'La gorra no reemplaza el casco.'},
+];
+/* ===================================================================== MOTOR */
+const $=s=>document.querySelector(s);
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const lerp=(a,b,t)=>a+(b-a)*t, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=p=>p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const isMobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+let renderer,scene,camera,dolly,world,sky,sun,raycaster;
+let QUALITY=isMobile?'medio':'alto';
+const TEX={},MAT={};
+const TW=[];
+function tween(dur,fn,done){const t={t:0,dur:Math.max(.001,dur),fn,done};TW.push(t);return t}
+function tweenP(dur,fn){return new Promise(r=>tween(dur,fn,r))}
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3800)}
+
+/* ---------- texturas procedurales ---------- */
+function canvasTex(w,h,draw,rep,srgb=true){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;if(rep)t.repeat.set(rep[0],rep[1]);if(srgb)t.encoding=THREE.sRGBEncoding;t.anisotropy=8;return t}
+const R=Math.random;
+function speckle(g,w,h,n,fn){for(let i=0;i<n;i++){g.fillStyle=fn();const s=.6+R()*2.6;g.fillRect(R()*w,R()*h,s,s)}}
+function blotch(g,w,h,n,col,rmax){for(let i=0;i<n;i++){const x=R()*w,y=R()*h,r=8+R()*rmax;const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,col);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-r,y-r,2*r,2*r)}}
+function makeTextures(){
+  TEX.gravel=canvasTex(512,512,(g,w,h)=>{g.fillStyle='#8f8571';g.fillRect(0,0,w,h);blotch(g,w,h,40,'rgba(70,58,40,.25)',60);speckle(g,w,h,14000,()=>`hsl(${28+R()*18},${8+R()*14}%,${30+R()*42}%)`)});
+  TEX.grass=canvasTex(512,512,(g,w,h)=>{g.fillStyle='#5f6b37';g.fillRect(0,0,w,h);blotch(g,w,h,60,'rgba(120,98,60,.45)',70);blotch(g,w,h,40,'rgba(70,95,40,.5)',50);speckle(g,w,h,9000,()=>`hsl(${60+R()*40},${25+R()*20}%,${22+R()*25}%)`)});
+  TEX.grime=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);for(let i=0;i<40;i++){g.fillStyle=`rgba(60,45,30,${.02+R()*.035})`;const x=R()*w;g.fillRect(x,R()*h*.4,2+R()*10,h*R())}blotch(g,w,h,30,'rgba(80,55,30,.18)',30);speckle(g,w,h,1500,()=>`rgba(40,30,20,${R()*.25})`)});
+  TEX.plate=canvasTex(128,128,(g,w,h)=>{g.fillStyle='#8a8f93';g.fillRect(0,0,w,h);for(let y=0;y<8;y++)for(let x=0;x<8;x++){g.save();g.translate(x*16+8,y*16+8);g.rotate(((x+y)%2?1:-1)*.78);g.fillStyle='#b0b5b8';g.fillRect(-6,-1.5,12,3);g.fillStyle='#62676b';g.fillRect(-6,1.5,12,1);g.restore()}speckle(g,w,h,500,()=>`rgba(50,40,30,${R()*.3})`)});
+  TEX.grate=canvasTex(128,128,(g,w,h)=>{g.fillStyle='#2a2e31';g.fillRect(0,0,w,h);g.fillStyle='#8c9296';for(let i=0;i<8;i++){g.fillRect(i*16,0,4,h)}g.fillStyle='#6d7377';for(let j=0;j<4;j++)g.fillRect(0,j*32,w,3)});
+  TEX.wood=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#7d5b39';g.fillRect(0,0,w,h);for(let i=0;i<8;i++){g.fillStyle=`hsl(28,${30+R()*10}%,${22+R()*12}%)`;g.fillRect(0,i*32,w,30);g.fillStyle='rgba(20,10,0,.5)';g.fillRect(0,i*32+30,w,2);for(let k=0;k<30;k++){g.fillStyle=`rgba(40,25,10,${R()*.25})`;g.fillRect(R()*w,i*32+R()*30,30+R()*80,1)}}});
+  TEX.concrete=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#9a968c';g.fillRect(0,0,w,h);blotch(g,w,h,30,'rgba(60,55,45,.2)',40);speckle(g,w,h,4000,()=>`rgba(${R()<.5?40:200},${R()<.5?40:200},${R()<.5?40:190},${R()*.25})`)});
+  TEX.dot=canvasTex(64,64,(g,w,h)=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64)});
+  TEX.sock=canvasTex(128,32,(g,w,h)=>{for(let i=0;i<5;i++){g.fillStyle=i%2?'#f2f2f2':'#e2531f';g.fillRect(i*w/5,0,w/5,h)}},null);
+}
+function rep(t,x,y){const c=t.clone();c.needsUpdate=true;c.repeat.set(x,y);return c}
+function std(color,o){const m=new THREE.MeshStandardMaterial(Object.assign({color,roughness:.7,metalness:.2},o||{}));m.color.convertSRGBToLinear();m.emissive.convertSRGBToLinear();return m}
+const lin=c=>new THREE.Color(c).convertSRGBToLinear();
+function makeMaterials(){
+  Object.assign(MAT,{
+    paint:std(0xc9561b,{map:TEX.grime,roughness:.55,metalness:.3}),
+    paintDk:std(0x9e4318,{map:TEX.grime,roughness:.6,metalness:.3}),
+    steel:std(0x5a656e,{map:TEX.grime,roughness:.55,metalness:.5}),
+    steelDk:std(0x30373d,{roughness:.55,metalness:.6}),
+    galv:std(0xa3a9ad,{roughness:.42,metalness:.75}),
+    yellow:std(0xe2ad1b,{roughness:.5,metalness:.15}),
+    yellowW:std(0xd9a51c,{map:TEX.grime,roughness:.55,metalness:.2}),
+    blue:std(0x2a5a86,{map:TEX.grime,roughness:.5,metalness:.35}),
+    red:std(0xb1281c,{map:TEX.grime,roughness:.48,metalness:.3}),
+    white:std(0xe7e4dc,{map:TEX.grime,roughness:.6,metalness:.05}),
+    pipe:std(0x7b858b,{roughness:.32,metalness:.85}),
+    tj:std(0x575f64,{roughness:.28,metalness:.9}),
+    wire:std(0x2c3034,{roughness:.4,metalness:.8}),
+    rubber:std(0x1c1e20,{roughness:.9,metalness:0}),
+    glass:std(0x2a3c48,{roughness:.05,metalness:.9,transparent:true,opacity:.6}),
+    wood:std(0x80603e,{map:TEX.wood,roughness:.9,metalness:0}),
+    concrete:std(0x9b978e,{map:TEX.concrete,roughness:.95,metalness:0}),
+    plate:std(0x737a80,{map:rep(TEX.plate,8,10),roughness:.5,metalness:.65}),
+    grate:std(0x7d8387,{map:TEX.grate,roughness:.6,metalness:.6}),
+    tank:std(0x6b7e8d,{map:TEX.grime,roughness:.6,metalness:.35}),
+    mud:std(0x5d4631,{roughness:.25,metalness:0}),
+    lamp:std(0xfff6d8,{emissive:0xfff2c8,emissiveIntensity:1.3}),
+    dark:std(0x15181b,{roughness:.8,metalness:.1}),
+    green:std(0x2f7d4a,{roughness:.6,metalness:.1}),
+  });
+}
+/* ---------- geometría ---------- */
+const UB=new THREE.BoxGeometry(1,1,1),UC=new THREE.CylinderGeometry(1,1,1,12),UC6=new THREE.CylinderGeometry(1,1,1,6);
+const Y=V(0,1,0);
+function add(p,m){p.add(m);return m}
+function box(p,w,h,d,mat,x,y,z){const m=new THREE.Mesh(UB,mat);m.scale.set(w,h,d);m.position.set(x,y,z);return add(p,m)}
+function boxT(p,w,h,d,mat,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);return add(p,m)}
+function cyl(p,r1,r2,h,mat,x,y,z,seg,axis){const m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,seg||20),mat);m.position.set(x,y,z);if(axis==='x')m.rotation.z=Math.PI/2;if(axis==='z')m.rotation.x=Math.PI/2;return add(p,m)}
+function orient(m,a,b,sx,sz){const d=V(b.x-a.x,b.y-a.y,b.z-a.z),L=d.length()||.001;m.position.set((a.x+b.x)/2,(a.y+b.y)/2,(a.z+b.z)/2);m.quaternion.setFromUnitVectors(Y,d.multiplyScalar(1/L));m.scale.set(sx,L,sz==null?sx:sz);return m}
+function rod(p,a,b,r,mat,lo){return add(p,orient(new THREE.Mesh(lo?UC6:UC,mat),a,b,r))}
+function bar(p,a,b,w,mat,h){return add(p,orient(new THREE.Mesh(UB,mat),a,b,w,h))}
+function lathe(p,pts,mat,y,seg){const m=new THREE.Mesh(new THREE.LatheGeometry(pts.map(q=>new THREE.Vector2(q[0],q[1])),seg||28),mat);m.position.y=y||0;return add(p,m)}
+function tube(p,pts,r,mat,seg){const c=new THREE.CatmullRomCurve3(pts);return add(p,new THREE.Mesh(new THREE.TubeGeometry(c,seg||24,r,8,false),mat))}
+function handrail(p,pts,h=1.1){for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];rod(p,V(a.x,a.y+h,a.z),V(b.x,b.y+h,b.z),.025,MAT.yellow,1);rod(p,V(a.x,a.y+h/2,a.z),V(b.x,b.y+h/2,b.z),.02,MAT.yellow,1);
+  const L=a.distanceTo(b),n=Math.max(1,Math.ceil(L/1.6));for(let k=0;k<=n;k++){const q=a.clone().lerp(b,k/n);rod(p,q,V(q.x,q.y+h,q.z),.025,MAT.yellow,1)}}}
+function stairs(p,a,b,w){const rise=b.y-a.y,n=Math.ceil(rise/.2);const dir=V(b.x-a.x,0,b.z-a.z);const run=dir.length();dir.normalize();const side=V(-dir.z,0,dir.x).multiplyScalar(w/2);
+  for(let i=0;i<n;i++){const q=a.clone().lerp(b,(i+.5)/n);const s=box(p,w,.04,run/n*1.1,MAT.grate,q.x,q.y,q.z);s.rotation.y=Math.atan2(dir.x,dir.z)}
+  for(const sg of[1,-1]){const o=side.clone().multiplyScalar(sg);bar(p,a.clone().add(o),b.clone().add(o),.08,MAT.yellowW,.22);handrail(p,[a.clone().add(o),b.clone().add(o)],1)}}
+function textTex(lines,{w=512,h=256,bg='#13603a',fg='#fff',font='bold 64px Barlow Condensed, Arial Narrow, sans-serif',border}={}){
+  return canvasTex(w,h,(g)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);if(border){g.strokeStyle=border;g.lineWidth=10;g.strokeRect(5,5,w-10,h-10)}g.fillStyle=fg;g.font=font;g.textAlign='center';g.textBaseline='middle';const lh=h/(lines.length+1);lines.forEach((t,i)=>g.fillText(t,w/2,lh*(i+1)))})}
+function label3D(text,scale=1){const c=document.createElement('canvas');const g=c.getContext('2d');g.font='600 40px IBM Plex Sans, Arial, sans-serif';const tw=g.measureText(text).width+36;c.width=tw;c.height=64;g.font='600 40px IBM Plex Sans, Arial, sans-serif';g.fillStyle='rgba(16,22,27,.86)';g.fillRect(0,0,tw,64);g.fillStyle='#f0a81c';g.fillRect(0,0,6,64);g.fillStyle='#ebe6da';g.textBaseline='middle';g.fillText(text,20,34);
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,transparent:true}));s.scale.set(tw/64*.32*scale,.32*scale,1);s.renderOrder=10;return s}
+
+/* ---------- motor ---------- */
+function initEngine(){
+  if(renderer)return;
+  makeTextures();makeMaterials();
+  const view=$('#view');
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
+  renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.xr.enabled=true;
+  view.prepend(renderer.domElement);
+  scene=new THREE.Scene();scene.fog=new THREE.Fog(0xc9d5dc,220,1300);
+  camera=new THREE.PerspectiveCamera(55,1,.08,2400);
+  dolly=new THREE.Group();dolly.add(camera);scene.add(dolly);
+  const sunDir=V(.55,.72,.42).normalize();
+  const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{top:{value:new THREE.Color(0x3f78b5)},hor:{value:new THREE.Color(0xd4e0e6)},bot:{value:new THREE.Color(0x9c9682)},sd:{value:sunDir}},
+    vertexShader:'varying vec3 vW;void main(){vW=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader:'uniform vec3 top,hor,bot,sd;varying vec3 vW;void main(){float h=vW.y;vec3 c=h>0.?mix(hor,top,pow(clamp(h,0.,1.),.5)):mix(hor,bot,pow(clamp(-h,0.,1.),.35));float s=max(dot(normalize(vW),sd),0.);c+=vec3(1.,.92,.75)*pow(s,600.)*3.+vec3(1.,.88,.7)*pow(s,10.)*.22;gl_FragColor=vec4(c,1.);}'});
+  sky=new THREE.Mesh(new THREE.SphereGeometry(1500,32,16),skyMat);scene.add(sky);
+  // entorno para reflejos
+  const envT=canvasTex(512,256,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#5d8ec4');gr.addColorStop(.47,'#dbe5ea');gr.addColorStop(.53,'#9a9078');gr.addColorStop(1,'#5f5442');g.fillStyle=gr;g.fillRect(0,0,w,h);const sx=w*.62,sy=h*.2;const sg=g.createRadialGradient(sx,sy,0,sx,sy,60);sg.addColorStop(0,'rgba(255,250,230,1)');sg.addColorStop(1,'rgba(255,250,230,0)');g.fillStyle=sg;g.fillRect(0,0,w,h)});
+  envT.mapping=THREE.EquirectangularReflectionMapping;envT.wrapS=THREE.ClampToEdgeWrapping;envT.wrapT=THREE.ClampToEdgeWrapping;scene.environment=envT;
+  scene.add(new THREE.HemisphereLight(0xd9e6f0,0x6e5d43,.55));
+  sun=new THREE.DirectionalLight(0xfff0d6,2.1);sun.position.copy(sunDir).multiplyScalar(120);sun.castShadow=true;
+  const sc=sun.shadow.camera;sc.left=-55;sc.right=55;sc.top=60;sc.bottom=-40;sc.near=20;sc.far=300;sun.shadow.bias=-.0004;sun.shadow.normalBias=.03;
+  scene.add(sun);scene.add(sun.target);
+  world=new THREE.Group();scene.add(world);
+  raycaster=new THREE.Raycaster();
+  buildWorld();
+  setupInput(renderer.domElement);setupXR();
+  new ResizeObserver(resize).observe(view);applyQuality();resize();
+  renderer.setAnimationLoop(tick);
+}
+function applyQuality(){
+  const q=QUALITY;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='alto'?2:q==='medio'?1.5:1));
+  renderer.shadowMap.enabled=q!=='bajo';sun.shadow.mapSize.set(q==='alto'?4096:2048,q==='alto'?4096:2048);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}
+  scene.traverse(o=>{if(o.material&&o.material.needsUpdate!==undefined)o.material.needsUpdate=true});
+  $('#btnQ').textContent='Gráficos: '+q;resize();
+}
+$('#btnQ').addEventListener('click',()=>{QUALITY=QUALITY==='alto'?'medio':QUALITY==='medio'?'bajo':'alto';applyQuality()});
+function resize(){if(!renderer||renderer.xr.isPresenting)return;const v=$('#view');const w=v.clientWidth||1,h=v.clientHeight||1;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+
+/* ---------- cámara: órbita / primera persona / cinemática ---------- */
+const CAM={mode:'orbit',lock:false,orb:{th:.75,ph:1.15,r:80,t:V(0,18,0)},og:{th:.75,ph:1.15,r:80,t:V(0,18,0)},fp:{pos:V(),yaw:0,pitch:0},fg:{yaw:0,pitch:0},cine:null,pos:V(60,40,60),tgt:V(0,18,0)};
+function syncOrbit(){const d=CAM.pos.clone().sub(CAM.tgt);const r=d.length()||1;Object.assign(CAM.orb,{r,ph:Math.acos(clamp(d.y/r,-1,1)),th:Math.atan2(d.x,d.z)});CAM.orb.t.copy(CAM.tgt)}
+function orbit(t,r,th,ph){if(CAM.mode!=='orbit'){syncOrbit();CAM.og.th=CAM.orb.th;CAM.og.ph=CAM.orb.ph}CAM.mode='orbit';CAM.lock=false;const g=CAM.og;g.t.copy(t);g.r=r;if(th!=null){let d=th-CAM.orb.th;d=Math.atan2(Math.sin(d),Math.cos(d));g.th=CAM.orb.th+d}if(ph!=null)g.ph=ph}
+function lookFrom(pos,tgt){const d=V(tgt[0]-pos[0],tgt[1]-pos[1],tgt[2]-pos[2]);const r=d.length();orbit(V(...tgt),r,Math.atan2(-d.x,-d.z),Math.acos(clamp(-d.y/r,-1,1)))}
+function fpMode(pos,yaw,pitch){CAM.mode='fp';CAM.lock=false;CAM.fp.pos.copy(pos);CAM.fp.yaw=CAM.fg.yaw=yaw;CAM.fp.pitch=CAM.fg.pitch=pitch||0}
+function fpLook(yaw,pitch){CAM.fg.yaw=yaw;CAM.fg.pitch=pitch}
+function cineTo(pos,tgt,dur,lock=true){return new Promise(res=>{CAM.mode='cine';CAM.lock=lock;CAM.cine={p0:CAM.pos.clone(),t0:CAM.tgt.clone(),p1:pos.clone(),t1:tgt.clone(),t:0,dur:dur||2,res}})}
+function camUpdate(dt){
+  const k=1-Math.pow(.003,dt);
+  if(CAM.mode==='orbit'){const o=CAM.orb,g=CAM.og;o.th+=(g.th-o.th)*k;o.ph+=(g.ph-o.ph)*k;o.r+=(g.r-o.r)*k;o.t.lerp(g.t,k);CAM.tgt.copy(o.t);
+    CAM.pos.set(o.t.x+o.r*Math.sin(o.ph)*Math.sin(o.th),o.t.y+o.r*Math.cos(o.ph),o.t.z+o.r*Math.sin(o.ph)*Math.cos(o.th));if(CAM.pos.y<.6&&!MODE.under)CAM.pos.y=.6}
+  else if(CAM.mode==='fp'){const f=CAM.fp,g=CAM.fg;f.yaw+=(g.yaw-f.yaw)*k;f.pitch+=(g.pitch-f.pitch)*k;CAM.pos.copy(f.pos);
+    CAM.tgt.set(f.pos.x-Math.sin(f.yaw)*Math.cos(f.pitch),f.pos.y+Math.sin(f.pitch),f.pos.z-Math.cos(f.yaw)*Math.cos(f.pitch))}
+  else if(CAM.cine){const c=CAM.cine;c.t+=dt;const p=ease(Math.min(1,c.t/c.dur));CAM.pos.lerpVectors(c.p0,c.p1,p);CAM.tgt.lerpVectors(c.t0,c.t1,p);if(p>=1&&c.res){const r=c.res;c.res=null;r()}}
+  camera.position.copy(CAM.pos);camera.lookAt(CAM.tgt);
+}
+async function fade(fn){$('#fade').classList.add('on');await wait(380);fn&&fn();await wait(80);$('#fade').classList.remove('on')}
+
+/* ---------- interacción ---------- */
+const INTER=[];let WAITER=null;const HOLD={on:false};
+function act(obj,id,label){obj.userData.act=id;if(label)obj.userData.label=label;obj.traverse(o=>{if(o.isMesh&&!o.userData.m0){o.userData.m0=o.material;o.material=Array.isArray(o.material)?o.material.map(x=>x.clone()):o.material.clone()}});if(!INTER.includes(obj))INTER.push(obj);return obj}
+function emis(o,r,g,b){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>{if(m&&m.emissive)m.emissive.setRGB(r,g,b)})}
+function unact(obj){const i=INTER.indexOf(obj);if(i>=0)INTER.splice(i,1);obj.userData.hot=false;obj.traverse(o=>{if(o.isMesh)emis(o,0,0,0)})}
+function clearActs(){INTER.slice().forEach(unact)}
+function hot(obj,v=true){if(obj)obj.userData.hot=v}
+function waitInput(){return new Promise(r=>{WAITER=r})}
+function dispatch(v){if(WAITER){const w=WAITER;WAITER=null;w(v)}}
+function visibleDeep(o){while(o){if(!o.visible)return false;o=o.parent}return true}
+function hitTest(rc){
+  const objs=INTER.filter(visibleDeep);const h=rc.intersectObjects(objs,true)[0];
+  if(h){let o=h.object;while(o&&!o.userData.act)o=o.parent;if(o)return{act:o.userData.act,obj:o,point:h.point}}
+  for(const x of rc.intersectObject(world,true)){let o=x.object,vis=true;while(o&&!o.userData.part){if(!o.visible)vis=false;o=o.parent}if(o&&vis&&visibleDeep(o))return{part:o.userData.part,point:x.point}}
+  return null}
+function onHit(h){if(!h)return;if(h.act){if(h.act==='HOLD')return;dispatch(h.act)}else if(h.part&&MODE.onPart)MODE.onPart(h.part)}
+function setupInput(el){
+  const pts=new Map();let down=null,pinch=0;
+  const dist=()=>{const a=[...pts.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
+  el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pts.size===1)down={moved:0};if(pts.size===2)pinch=dist()});
+  el.addEventListener('pointermove',e=>{
+    const p=pts.get(e.pointerId);if(!p){if(e.pointerType==='mouse')hover(e);return}
+    const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+    if(pts.size===1){if(down)down.moved+=Math.abs(dx)+Math.abs(dy);if(down&&down.moved<5)return;
+      if(CAM.mode==='cine'){if(CAM.lock)return;syncOrbit();CAM.og.th=CAM.orb.th;CAM.og.ph=CAM.orb.ph;CAM.og.r=CAM.orb.r;CAM.og.t.copy(CAM.orb.t);CAM.mode='orbit'}
+      if(CAM.mode==='orbit'){CAM.og.th-=dx*.006;CAM.og.ph=clamp(CAM.og.ph-dy*.006,.12,MODE.under?2.6:1.56)}
+      else if(CAM.mode==='fp'){CAM.fg.yaw+=dx*.005;CAM.fg.pitch=clamp(CAM.fg.pitch+dy*.005,-1.35,1.2)}}
+    else if(pts.size===2&&CAM.mode==='orbit'){const d=dist();if(pinch)CAM.og.r=clamp(CAM.og.r*pinch/d,3,220);pinch=d;if(down)down.moved=99}});
+  const up=e=>{if(down&&down.moved<6&&pts.size===1)pickAt(e.clientX,e.clientY);pts.delete(e.pointerId);if(!pts.size)down=null;pinch=0};
+  el.addEventListener('pointerup',up);el.addEventListener('pointercancel',e=>{pts.delete(e.pointerId);down=null});
+  el.addEventListener('wheel',e=>{e.preventDefault();if(CAM.mode==='orbit')CAM.og.r=clamp(CAM.og.r*(1+e.deltaY*.001),3,220)},{passive:false});
+  el.addEventListener('pointerleave',()=>{$('#tip').hidden=true});
+}
+function rayFromScreen(x,y){const r=renderer.domElement.getBoundingClientRect();raycaster.setFromCamera({x:(x-r.left)/r.width*2-1,y:-(y-r.top)/r.height*2+1},camera);return raycaster}
+function pickAt(x,y){onHit(hitTest(rayFromScreen(x,y)))}
+let hoverT=0;
+function hover(e){const now=performance.now();if(now-hoverT<60)return;hoverT=now;const h=hitTest(rayFromScreen(e.clientX,e.clientY));const tip=$('#tip');
+  const lbl=h&&(h.act?h.obj.userData.label:(MODE.onPart&&PARTS[h.part]?PARTS[h.part].n:null));
+  renderer.domElement.style.cursor=lbl||(h&&h.act)?'pointer':'grab';
+  if(lbl){const r=$('#view').getBoundingClientRect();tip.textContent=lbl;tip.style.left=(e.clientX-r.left)+'px';tip.style.top=(e.clientY-r.top)+'px';tip.hidden=false}else tip.hidden=true}
+
+/* ---------- XR ---------- */
+const XRS={pos:V(4,0,10),yaw:0};let VRB=null,VRBTN=[],CURBTN=[];
+function station(pos,yaw){XRS.pos.copy(pos);XRS.yaw=yaw||0;if(renderer&&renderer.xr.isPresenting&&!MODE.ar){dolly.position.copy(XRS.pos);dolly.rotation.y=XRS.yaw}}
+function setupXR(){
+  const tmp=new THREE.Matrix4(),rc=new THREE.Raycaster();
+  for(let i=0;i<2;i++){const c=renderer.xr.getController(i);
+    const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(0,0,0),V(0,0,-8)]),new THREE.LineBasicMaterial({color:0xf0a81c}));c.add(line);
+    const sel=down=>{tmp.identity().extractRotation(c.matrixWorld);rc.ray.origin.setFromMatrixPosition(c.matrixWorld);rc.ray.direction.set(0,0,-1).applyMatrix4(tmp);
+      if(down){const h=hitTest(rc);if(h&&h.act==='HOLD'){HOLD.on=true;return}onHit(h)}else HOLD.on=false};
+    c.addEventListener('selectstart',()=>sel(true));c.addEventListener('selectend',()=>sel(false));dolly.add(c);
+    const g=renderer.xr.getControllerGrip(i);box(g,.05,.04,.14,MAT.steelDk,0,0,.03);dolly.add(g)}
+  // tablero flotante con instructor + tarea
+  const cv=document.createElement('canvas');cv.width=1024;cv.height=512;const tx=new THREE.CanvasTexture(cv);tx.encoding=THREE.sRGBEncoding;
+  VRB={cv,tx,mesh:new THREE.Mesh(new THREE.PlaneGeometry(1.3,.65),new THREE.MeshBasicMaterial({map:tx,transparent:true}))};
+  VRB.mesh.position.set(-.85,1.45,-1.35);VRB.mesh.rotation.y=.5;VRB.mesh.visible=false;dolly.add(VRB.mesh);
+  renderer.xr.addEventListener('sessionstart',()=>{VRB.mesh.visible=true;vrDraw();vrButtons(CURBTN)});
+  renderer.xr.addEventListener('sessionend',()=>{VRB.mesh.visible=false;vrButtons(CURBTN);MODE.ar=false;sky.visible=true;ground.visible=true;world.scale.setScalar(1);world.position.set(0,0,0);dolly.position.set(0,0,0);dolly.rotation.set(0,0,0);resize()});
+}
+function wrapText(g,text,x,y,maxW,lh){const words=String(text).split(' ');let line='';for(const w of words){const t=line?line+' '+w:w;if(g.measureText(t).width>maxW&&line){g.fillText(line,x,y);y+=lh;line=w}else line=t}if(line)g.fillText(line,x,y);return y}
+function vrDraw(){if(!VRB||!renderer.xr.isPresenting)return;const g=VRB.cv.getContext('2d');g.fillStyle='rgba(16,22,27,.92)';g.fillRect(0,0,1024,512);g.fillStyle='#f0a81c';g.fillRect(0,0,10,512);
+  g.font='600 30px Arial';g.fillStyle='#f0a81c';g.fillText('ING. RAMIRO CÁRDENAS · INSTRUCTOR',36,52);g.font='34px Arial';g.fillStyle='#ebe6da';let y=wrapText(g,SUBTXT,36,104,950,42);
+  g.font='600 30px Arial';g.fillStyle='#62a8d4';wrapText(g,TASK?'TAREA: '+TASK:'',36,Math.max(y+56,380),950,38);VRB.tx.needsUpdate=true}
+function vrButtons(list){VRBTN.forEach(b=>{unact(b);dolly.remove(b)});VRBTN=[];if(!renderer||!renderer.xr.isPresenting)return;
+  list.forEach((o,i)=>{const t=textTex([o.t.length>46?o.t.slice(0,44)+'…':o.t],{w:1024,h:128,bg:o.v==='HOLD'?'#a3301e':'#232e37',fg:'#ebe6da',font:'600 40px Arial',border:'#f0a81c'});
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(.9,.112),new THREE.MeshStandardMaterial({map:t,emissive:0x000000,emissiveMap:t}));m.position.set(.75,1.62-i*.135,-1.2);m.rotation.y=-.5;dolly.add(m);act(m,o.v);VRBTN.push(m)})}
+async function enterXR(mode){
+  initEngine();
+  if(!navigator.xr){toast('Este navegador no tiene WebXR. Abre la versión publicada (GitHub Pages) en el navegador de las Meta Quest o en Chrome para Android.');return}
+  let ok=false;try{ok=await navigator.xr.isSessionSupported(mode)}catch(e){}
+  if(!ok){toast(mode==='immersive-vr'?'Modo VR no disponible aquí. En las Quest, abre la versión publicada en su navegador.':'Modo AR no disponible aquí. Prueba en Chrome para Android con ARCore o en las Quest 3.');return}
+  try{const s=await navigator.xr.requestSession(mode,{optionalFeatures:['local-floor']});renderer.xr.setReferenceSpaceType('local-floor');await renderer.xr.setSession(s);
+    if(mode==='immersive-ar'){MODE.ar=true;sky.visible=false;ground.visible=false;world.scale.setScalar(.018);world.position.set(0,0,-1.4)}
+    else{dolly.position.copy(XRS.pos);dolly.rotation.y=XRS.yaw}
+  }catch(e){toast('No se pudo iniciar la sesión inmersiva: '+e.message)}}
+$('#btnVR').addEventListener('click',()=>enterXR('immersive-vr'));
+$('#btnAR').addEventListener('click',()=>enterXR('immersive-ar'));
+
+/* ---------- narrador (voz del instructor) ---------- */
+const NAR={muted:false,voice:null,speaking:false,cancel:null,last:''};
+let SUBTXT='',TASK='';
+function pickVoice(){if(!('speechSynthesis' in window))return;const vs=speechSynthesis.getVoices();const pref=['es-CO','es-MX','es-US','es-419','es-ES','es'];
+  for(const p of pref){const m=vs.filter(v=>v.lang&&v.lang.replace('_','-').toLowerCase().startsWith(p.toLowerCase()));if(m.length){NAR.voice=m.find(v=>/male|jorge|diego|pablo|juan|carlos|raul|enrique/i.test(v.name))||m[0];return}}}
+if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
+function setSub(t){SUBTXT=t;$('#subText').textContent=t||'—';vrDraw()}
+function task(t){TASK=t||'';$('#hintText').textContent=TASK;$('#hint').hidden=!TASK;vrDraw()}
+function stopSay(){if(NAR.cancel){const c=NAR.cancel;NAR.cancel=null;c()}}
+function say(text){
+  stopSay();NAR.last=text;setSub(text);
+  return new Promise(res=>{
+    let done=false;const fin=()=>{if(done)return;done=true;NAR.speaking=false;NAR.cancel=null;clearTimeout(tm);res()};
+    const est=Math.max(1600,text.split(/\s+/).length*390);let tm;
+    NAR.speaking=true;
+    if(NAR.muted||!('speechSynthesis' in window)){tm=setTimeout(fin,NAR.muted?Math.max(1400,est*.75):est);NAR.cancel=fin;return}
+    try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=NAR.voice?NAR.voice.lang:'es-CO';if(NAR.voice)u.voice=NAR.voice;u.rate=1.04;u.pitch=.92;
+      u.onend=fin;u.onerror=fin;NAR.cancel=()=>{try{speechSynthesis.cancel()}catch(e){}fin()};speechSynthesis.speak(u);tm=setTimeout(fin,est*2.2+3000)}
+    catch(e){tm=setTimeout(fin,est);NAR.cancel=fin}
+  })}
+$('#subSkip').addEventListener('click',stopSay);
+$('#subRepeat').addEventListener('click',()=>{if(NAR.last)say(NAR.last)});
+$('#btnVoice').addEventListener('click',()=>{NAR.muted=!NAR.muted;$('#btnVoice').textContent='Voz: '+(NAR.muted?'no':'sí');if(NAR.muted&&'speechSynthesis' in window)speechSynthesis.cancel()});
+
+/* ---------- control de guiones (cancelables) ---------- */
+const ABORT={abort:1};let CTX={dead:true};let MODE={};
+function newCtx(){CTX.dead=true;stopSay();WAITER=null;TW.length=0;clearActs();CURBTN=[];vrButtons([]);HOLD.on=false;task('');CTX={dead:false};return CTX}
+async function w(p){const c=CTX;const r=await p;if(c.dead)throw ABORT;return r}
+function run(fn){fn().catch(e=>{if(e!==ABORT)console.error(e)})}
+
+/* ---------- panel ---------- */
+const P=$('#panel');
+P.addEventListener('click',e=>{const b=e.target.closest('[data-in]');if(b&&!b.disabled)dispatch(b.dataset.in)});
+P.addEventListener('pointerdown',e=>{const b=e.target.closest('.hold');if(b){HOLD.on=true;b.classList.add('on');b.setPointerCapture&&b.setPointerCapture(e.pointerId)}});
+const holdOff=()=>{HOLD.on=false;P.querySelectorAll('.hold.on').forEach(b=>b.classList.remove('on'))};
+P.addEventListener('pointerup',holdOff);P.addEventListener('pointercancel',holdOff);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function panel(h){P.innerHTML=h}
+function optsHTML(opts){return `<div class="list">${opts.map(o=>o.v==='HOLD'?`<button class="btn hold" type="button">${esc(o.t)}</button>`:`<button class="opt" type="button" data-in="${esc(o.v)}">${o.t}</button>`).join('')}</div>`}
+function setButtons(opts){CURBTN=opts;vrButtons(opts)}
+async function ask(head,opts,valid){
+  panel(head+optsHTML(opts));setButtons(opts);
+  for(;;){const v=await w(waitInput());if((valid&&valid.includes(v))||opts.some(o=>o.v===v)){setButtons([]);return v}}
+}
+/* ===================================================================== MODELOS */
+const F=7.6,H=43,MONK=26.6,LEN=27.4,EOFF=5.7;
+const SLOTZ=1.38,SX=i=>-.78-.21*i;
+let ground,pad;
+const RIG={parts:{},people:[]};
+function part(key,parent){const g=new THREE.Group();g.userData.part=key;g.name=key;RIG.parts[key]=g;(parent||world).add(g);return g}
+
+/* ---------- terreno con hueco del contrapozo ---------- */
+function rectHole(p,x0,x1,z0,z1,hh,y,mat,tile){
+  const g=new THREE.Group();
+  const rect=(a,b,c,d)=>{if(b-a<=0||d-c<=0)return;const geo=new THREE.PlaneGeometry(b-a,d-c);const uv=geo.attributes.uv,pos=geo.attributes.position;
+    for(let i=0;i<uv.count;i++){const wx=pos.getX(i)+(a+b)/2,wz=-pos.getY(i)+(c+d)/2;uv.setXY(i,wx/tile,-wz/tile)}
+    const m=new THREE.Mesh(geo,mat);m.rotation.x=-Math.PI/2;m.position.set((a+b)/2,y,(c+d)/2);m.receiveShadow=true;g.add(m)};
+  rect(x0,x1,hh,z1);rect(x0,x1,z0,-hh);rect(x0,-hh,-hh,hh);rect(hh,x1,-hh,hh);p.add(g);return g}
+
+function makeStand(){const g=new THREE.Group();const j=LEN/3;
+  for(let k=0;k<3;k++)cyl(g,.064,.064,j-.5,MAT.pipe,0,k*j+j/2,0,14);
+  for(let k=0;k<=3;k++)cyl(g,.084,.084,.46,MAT.tj,0,k*j+(k===0?.23:k===3?-.23:0),0,16);
+  g.traverse(o=>{if(o.isMesh)o.castShadow=true});return g}
+function setStand(g,base,top){g.position.copy(base);const d=V(top.x-base.x,top.y-base.y,top.z-base.z).normalize();g.quaternion.setFromUnitVectors(Y,d)}
+
+/* ---------- personas ---------- */
+function makePerson(o){
+  o=Object.assign({suit:0xd8661c,hat:0xf2d22e,skin:0xb07a58,glasses:true},o);
+  const suit=std(o.suit,{roughness:.85,metalness:0}),skin=std(o.skin,{roughness:.65,metalness:0}),refl=std(0xd8dcd4,{emissive:0x3a3a3a,roughness:.35,metalness:.4}),
+    boot=std(0x2a1d14,{roughness:.8,metalness:0}),glove=std(o.glove||0xe0b23a,{roughness:.8,metalness:0}),dark=std(0x1a1512,{roughness:.6}),hatM=std(o.hat,{roughness:.35,metalness:.05});
+  const g=new THREE.Group(),P={g};
+  const limb=(par,r1,r2,len,mat)=>{const m=cyl(par,r1,r2,len,mat,0,-len/2,0,12);sph(par,r1,mat,0,0,0);sph(par,r2,mat,0,-len,0);return m};
+  function sph(par,r,mat,x,y,z,sx,sy,sz){const m=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),mat);m.position.set(x,y,z);if(sx)m.scale.set(sx,sy,sz);par.add(m);return m}
+  // piernas
+  for(const s of[-1,1]){const hip=new THREE.Group();hip.position.set(s*.1,.93,0);g.add(hip);limb(hip,.085,.072,.44,suit);
+    const knee=new THREE.Group();knee.position.y=-.44;hip.add(knee);limb(knee,.07,.06,.42,suit);cyl(knee,.075,.075,.06,refl,0,-.3,0,12);
+    box(knee,.13,.11,.28,boot,0,-.47,.05);P[s<0?'legL':'legR']={hip,knee}}
+  // torso
+  const torso=new THREE.Group();torso.position.y=.9;g.add(torso);P.torso=torso;
+  const tp=[[0,0],[.16,0],[.17,.08],[.155,.2],[.175,.36],[.19,.47],[.17,.54],[.08,.6],[0,.61]];
+  const t=lathe(torso,tp,suit,0,20);t.scale.set(1.15,1,.72);
+  for(const y of[.2,.42]){const b=cyl(torso,.166,.166,.045,refl,0,y,0,20);b.scale.set(1.18,1,.74)}
+  cyl(torso,.18,.18,.06,std(0x3b2f25,{roughness:.6}),0,.03,0,20).scale.set(1.18,1,.74);// cinturón
+  if(o.harness){const hm=std(0x1d4fa0,{roughness:.6});rod(torso,V(-.11,.05,.13),V(.11,.5,.1),.022,hm);rod(torso,V(.11,.05,.13),V(-.11,.5,.1),.022,hm);box(torso,.08,.08,.04,std(0x9aa1a5,{metalness:.8,roughness:.3}),0,.42,-.13)}
+  // cabeza
+  const neck=cyl(torso,.05,.055,.09,skin,0,.64,0,12);
+  const head=new THREE.Group();head.position.y=.76;torso.add(head);P.head=head;
+  sph(head,.105,skin,0,0,0,.9,1.08,1);
+  sph(head,.1,std(0x1b1410,{roughness:.9}),0,.02,-.02,.92,1,.95);// pelo
+  sph(head,.103,skin,0,-.005,.012,.88,1.04,.97);
+  for(const s of[-1,1]){sph(head,.016,std(0xf2efe8),s*.037,.02,.088);sph(head,.008,dark,s*.037,.02,.101);box(head,.035,.008,.01,dark,s*.038,.048,.095);sph(head,.022,skin,s*.098,0,0,.5,1,.8)}
+  const nose=cyl(head,.004,.018,.04,skin,0,-.005,.1,8);nose.rotation.x=Math.PI/2;
+  const mouth=box(head,.042,.008,.012,std(0x5a2420,{roughness:.6}),0,-.048,.093);P.mouth=mouth;
+  if(o.mustache)box(head,.055,.012,.012,std(0x1b1410),0,-.033,.098);
+  if(o.glasses){const gm=std(0x222a30,{roughness:.1,metalness:.6,transparent:true,opacity:.55});box(head,.13,.035,.01,gm,0,.02,.108)}
+  // casco
+  const hat=new THREE.Group();hat.position.y=.035;head.add(hat);
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(.128,20,12,0,Math.PI*2,0,Math.PI/2),hatM);dome.scale.set(1,.92,1.08);hat.add(dome);
+  cyl(hat,.15,.155,.012,hatM,0,0,.012,24).scale.set(1,1,1.1);box(hat,.025,.02,.24,hatM,0,.115,0);
+  if(o.hatStripe)cyl(hat,.129,.129,.02,std(o.hatStripe),0,.03,0,24);
+  // brazos
+  for(const s of[-1,1]){const sh=new THREE.Group();sh.position.set(s*.205,.5,0);torso.add(sh);limb(sh,.06,.052,.29,suit);cyl(sh,.064,.064,.045,refl,0,-.12,0,12);
+    const el=new THREE.Group();el.position.y=-.29;sh.add(el);limb(el,.05,.045,.26,suit);box(el,.075,.1,.04,glove,0,-.3,0);
+    sh.rotation.z=s*.12;P[s<0?'armL':'armR']={sh,el}}
+  P.base={hipL:0};g.userData.person=P;
+  g.traverse(m=>{if(m.isMesh){m.castShadow=true}});
+  P.anim='idle';P.ph=R()*6;P.point=null;P.talk=false;
+  RIG.people.push(P);return P}
+const tmpV=V(0,0,0),tmpQ=new THREE.Quaternion();
+function animatePeople(dt,T){
+  for(const P of RIG.people){if(!visibleDeep(P.g))continue;const t=T+P.ph;
+    P.torso.scale.y=1+Math.sin(t*1.6)*.008;P.head.rotation.y=Math.sin(t*.4)*.15;
+    let ar=P.armR,al=P.armL;
+    if(P.anim==='walk'){const s=Math.sin(t*7);P.legL.hip.rotation.x=s*.5;P.legR.hip.rotation.x=-s*.5;P.legL.knee.rotation.x=Math.max(0,-s)*.6;P.legR.knee.rotation.x=Math.max(0,s)*.6;al.sh.rotation.x=-s*.4;ar.sh.rotation.x=s*.4}
+    else if(P.anim==='climb'){const s=Math.sin(t*4);P.legL.hip.rotation.x=-.6-s*.4;P.legR.hip.rotation.x=-.6+s*.4;P.legL.knee.rotation.x=.9+s*.3;P.legR.knee.rotation.x=.9-s*.3;al.sh.rotation.x=-2.6-s*.3;ar.sh.rotation.x=-2.6+s*.3;al.el.rotation.x=-.4;ar.el.rotation.x=-.4}
+    else if(P.anim==='work'){const s=Math.sin(t*3);al.sh.rotation.x=-.9+s*.25;ar.sh.rotation.x=-.9-s*.25;al.el.rotation.x=-.8;ar.el.rotation.x=-.8;P.legL.hip.rotation.x=P.legR.hip.rotation.x=0}
+    else if(P.anim==='down'){P.g.rotation.z=lerp(P.g.rotation.z,Math.PI/2,.1)}
+    else{for(const L of[P.legL,P.legR]){L.hip.rotation.x*=.9;L.knee.rotation.x*=.9}al.sh.rotation.x=lerp(al.sh.rotation.x,P.talk?-.35+Math.sin(t*2.3)*.25:0,.1);al.el.rotation.x=lerp(al.el.rotation.x,P.talk?-.7:0,.1)}
+    if(P.anim!=='walk'&&P.anim!=='climb'&&P.anim!=='work'){
+      if(P.point){P.g.updateMatrixWorld();const sw=ar.sh.parent.localToWorld(ar.sh.position.clone());const d=P.point.clone().sub(sw).normalize();
+        tmpQ.copy(ar.sh.parent.getWorldQuaternion(new THREE.Quaternion())).invert();d.applyQuaternion(tmpQ);const q=new THREE.Quaternion().setFromUnitVectors(V(0,-1,0),d);ar.sh.quaternion.slerp(q,.12);ar.el.rotation.x=lerp(ar.el.rotation.x,0,.1)}
+      else{ar.sh.quaternion.slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler(P.talk?-.25+Math.sin(t*1.9+1)*.2:0,0,.12)),.1);ar.el.rotation.x=lerp(ar.el.rotation.x,P.talk?-.5:0,.1)}}
+    if(P.mouth){const m=P.talk?(.25+.75*Math.abs(Math.sin(t*15)*Math.sin(t*4.7+1))):0;P.mouth.scale.y=lerp(P.mouth.scale.y,.008+m*.03,.5)}
+  }}
+
+/* ---------- mundo ---------- */
+function buildWorld(){
+  ground=new THREE.Group();world.add(ground);
+  const gm=std(0xffffff,{map:TEX.grass,roughness:1,metalness:0}),pm=std(0xffffff,{map:TEX.gravel,roughness:1,metalness:0});
+  rectHole(ground,-700,700,-700,700,1.85,-.02,gm,9);
+  pad=rectHole(ground,-42,46,-52,54,1.85,.01,pm,5);
+  buildSite();buildCellar();buildBOP();buildSub();buildFloor();buildDrawworks();buildDoghouse();buildMast();buildMud();buildRacks();buildTools();buildCrew();buildCrane();buildInstructor();buildWell();buildFX();
+  world.traverse(o=>{if(o.isMesh){if(o.castShadow===false)return;o.castShadow=true;o.receiveShadow=true}});
+  ground.traverse(o=>{if(o.isMesh)o.castShadow=false});
+  // materiales propios por componente (para resaltarlos sin afectar a los demás)
+  for(const k in RIG.parts){const cache=new Map();RIG.parts[k].traverse(o=>{if(o.isMesh&&o.material&&!o.userData.keepMat){if(!cache.has(o.material))cache.set(o.material,o.material.clone());o.material=cache.get(o.material)}})}
+}
+function highlight(key){for(const k in RIG.parts)RIG.parts[k].traverse(o=>{if(o.isMesh&&o.material.emissive&&!o.userData.act&&!o.userData.keepMat)o.material.emissive.setHex(k===key?0x2b1a00:0)})}
+
+function buildSite(){
+  const s=new THREE.Group();world.add(s);RIG.site=s;
+  // montañas del Huila al fondo
+  const mm=std(0x4f6a45,{roughness:1,metalness:0,flatShading:true});
+  [[-420,-380,170,140],[-150,-520,210,190],[220,-470,190,160],[480,-260,160,120],[520,180,150,110],[-520,200,200,150],[60,560,230,170],[-300,480,170,120]].forEach(([x,z,r,h])=>{const c=new THREE.Mesh(new THREE.ConeGeometry(r,h,9,1),mm);c.position.set(x,h/2-6,z);c.rotation.y=R()*3;c.castShadow=false;s.add(c)});
+  // árboles (instanciados)
+  const N=110,trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(.18,.28,4,6),std(0x5a4330,{roughness:1}),N),crown=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(2.6,0),std(0x3f6a2c,{roughness:1,flatShading:true}),N);
+  const mtx=new THREE.Matrix4();let n=0;
+  while(n<N){const a=R()*Math.PI*2,r=62+R()*140,x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.abs(x)<9&&z>40)continue;const sc=.7+R()*.9;
+    mtx.compose(V(x,2*sc,z),new THREE.Quaternion(),V(sc,sc,sc));trunk.setMatrixAt(n,mtx);mtx.compose(V(x,(4.6+R())*sc,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(R(),R(),R())),V(sc*(1+R()*.4),sc*(.9+R()*.5),sc*(1+R()*.4)));crown.setMatrixAt(n,mtx);n++}
+  s.add(trunk);s.add(crown);
+  // vía de acceso
+  const road=new THREE.Mesh(new THREE.PlaneGeometry(8,160),std(0x7d725f,{map:rep(TEX.gravel,2,30),roughness:1}));road.rotation.x=-Math.PI/2;road.position.set(0,.015,132);road.receiveShadow=true;s.add(road);
+  // portería y aviso
+  for(const x of[-5,5])box(s,.3,4,.3,MAT.yellowW,x,2,52);box(s,10.6,.3,.3,MAT.yellowW,0,4,52);
+  const sign=new THREE.Mesh(new THREE.PlaneGeometry(6,1.6),std(0xffffff,{map:textTex(['LOCACIÓN DE PERFORACIÓN','USO OBLIGATORIO DE EPP'],{bg:'#0f4d8a',font:'bold 56px Barlow Condensed, Arial Narrow, sans-serif'}),roughness:.6}));sign.position.set(0,5.1,52.2);s.add(sign);
+  // generadores, combustible, agua
+  for(let i=0;i<3;i++){const z=-10+i*6.5;boxT(s,12,2.8,2.6,MAT.white,-27,1.4,z);for(const x of[-30,-26])cyl(s,.22,.22,1.8,MAT.steelDk,x,3.6,z,10);box(s,11.8,.2,2.4,MAT.steel,-27,2.9,z)}
+  cyl(s,1.6,1.6,10,MAT.white,-27,2,-24,24,'x');for(const x of[-31,-23])box(s,.5,1,2.6,MAT.steel,x,.5,-24);
+  cyl(s,2.4,2.4,4.5,MAT.tank,28,2.25,-24,24);
+  // contenedores / oficinas
+  [[-26,32],[-26,38],[-12,40]].forEach(([x,z])=>{boxT(s,9,2.8,3,MAT.white,x,1.5,z);box(s,.05,1,1.6,MAT.glass,x+4.52,1.9,z);box(s,2,.05,1,MAT.glass,x,1.9,z+1.52)});
+  // torres de iluminación
+  RIG.lamps=[];[[-34,-40],[38,-44],[-36,44],[40,40]].forEach(([x,z])=>{cyl(s,.12,.18,10,MAT.galv,x,5,z,8);const h=box(s,1.6,.8,.3,MAT.steelDk,x,10.2,z);h.lookAt(0,0,0);const l=box(s,1.4,.6,.05,MAT.lamp,x,10.2,z);l.lookAt(0,10,0);l.castShadow=false;RIG.lamps.push(l)});
+  // manga de viento (viento del norte → sopla hacia +z)
+  cyl(s,.06,.08,8,MAT.galv,-14,4,-14,8);const sock=new THREE.Mesh(new THREE.CylinderGeometry(.32,.12,2.2,16,1,true),std(0xffffff,{map:TEX.sock,side:THREE.DoubleSide,roughness:.8}));
+  const sg=new THREE.Group();sg.position.set(-14,7.8,-14);s.add(sg);sock.rotation.x=Math.PI/2;sock.position.z=1.1;sg.add(sock);RIG.sock=sg;
+  // puntos de encuentro
+  RIG.pe=[];[[-6,-46,'PUNTO DE ENCUENTRO 1'],[-22,42,'PUNTO DE ENCUENTRO 2']].forEach(([x,z,t],i)=>{const g=new THREE.Group();g.position.set(x,0,z);s.add(g);cyl(g,.06,.06,2.6,MAT.galv,-.7,1.3,0,8);cyl(g,.06,.06,2.6,MAT.galv,.7,1.3,0,8);
+    const tx=textTex([t.split(' ').slice(0,3).join(' '),t.split(' ').slice(3).join(' ')],{bg:'#147a3c',font:'bold 64px Barlow Condensed, Arial Narrow, sans-serif',border:'#fff'});const b=new THREE.Mesh(new THREE.BoxGeometry(2,1.1,.06),[MAT.white,MAT.white,MAT.white,MAT.white,std(0xffffff,{map:tx}),std(0xffffff,{map:tx})]);b.position.y=2.3;g.add(b);RIG.pe.push(g)});
+  // estación de EPP
+  const e=new THREE.Group();e.position.set(14,0,40);s.add(e);RIG.eppStation=e;
+  for(const x of[-3.2,3.2])for(const z of[-1.6,1.4])cyl(e,.06,.06,2.8,MAT.galv,x,1.4,z,8);box(e,7,.1,3.4,MAT.blue,0,2.85,-.1);
+  boxT(e,5.8,.08,1.1,MAT.wood,0,.9,-.6);for(const x of[-2.7,2.7])box(e,.08,.9,1,MAT.steel,x,.45,-.6);
+  const sgn=new THREE.Mesh(new THREE.PlaneGeometry(3.2,.7),std(0xffffff,{map:textTex(['ESTACIÓN DE EPP'],{w:512,h:112,bg:'#0f4d8a'})}));sgn.position.set(0,2.4,-1.62);e.add(sgn);
+}
+
+function buildCellar(){
+  const g=part('cellar');const c=MAT.concrete;
+  for(const[x,z,w,d]of[[0,1.83,3.9,.24],[0,-1.83,3.9,.24],[1.83,0,.24,3.9],[-1.83,0,.24,3.9]])boxT(g,w,2.4,d,c,x,-1.05,z);
+  boxT(g,3.7,.2,3.7,c,0,-2.25,0);
+  cyl(g,.34,.34,.9,MAT.steel,0,-1.7,0);cyl(g,.56,.56,.42,MAT.blue,0,-1.1,0);cyl(g,.66,.66,.08,MAT.blue,0,-.86,0);
+  for(const s of[-1,1]){cyl(g,.09,.09,.6,MAT.steel,s*.75,-1.1,0,10,'x');box(g,.2,.26,.26,MAT.blue,s*1.1,-1.1,0)}
+}
+function flange(p,y,r){const t=new THREE.Mesh(new THREE.TorusGeometry(r,.06,8,32),MAT.steelDk);t.rotation.x=Math.PI/2;t.position.y=y;p.add(t);
+  const n=14,st=new THREE.InstancedMesh(new THREE.CylinderGeometry(.025,.025,.2,6),MAT.galv,n);const m=new THREE.Matrix4();for(let i=0;i<n;i++){const a=i/n*Math.PI*2;m.makeTranslation(Math.cos(a)*(r+.03),y,Math.sin(a)*(r+.03));st.setMatrixAt(i,m)}p.add(st)}
+function gateValve(p,x,y,z,axis){const g=new THREE.Group();g.position.set(x,y,z);p.add(g);box(g,.32,.32,.36,MAT.red,0,0,0);cyl(g,.05,.05,.5,MAT.galv,0,.35,0,8);const hw=new THREE.Mesh(new THREE.TorusGeometry(.17,.02,6,20),MAT.steelDk);hw.rotation.x=Math.PI/2;hw.position.y=.6;g.add(hw);if(axis==='z')g.rotation.y=Math.PI/2;return g}
+function buildBOP(){
+  const g=part('bop');RIG.bop=g;
+  flange(g,-.8,.6);cyl(g,.42,.42,.7,MAT.red,0,-.42,0);flange(g,-.06,.55);
+  for(const s of[-1,1]){cyl(g,.1,.1,1.1,MAT.steel,s*.95,-.42,0,10,'x');gateValve(g,s*1.25,-.42,0);gateValve(g,s*1.75,-.42,0)}
+  box(g,2.5,1.45,1.05,MAT.red,0,.75,0);flange(g,1.5,.55);
+  for(const y of[.4,1.1])for(const s of[-1,1]){cyl(g,.38,.38,.45,MAT.red,s*1.47,y,0,24,'x');cyl(g,.26,.26,.7,MAT.paintDk,s*2.0,y,0,20,'x');const hw=new THREE.Mesh(new THREE.TorusGeometry(.2,.025,6,20),MAT.steelDk);hw.rotation.y=Math.PI/2;hw.position.set(s*2.42,y,0);g.add(hw)}
+  const ann=lathe(g,[[.3,0],[.9,0],[1,.25],[1,.9],[.86,1.35],[.55,1.65],[.36,1.72],[.3,1.72]],MAT.red,1.55,32);RIG.annular=ann;
+  flange(g,3.3,.42);cyl(g,.32,.32,F-3.6,MAT.galv,0,3.3+(F-3.6)/2,0);
+  // línea de flote hacia las zarandas
+  tube(g,[V(.3,F-1.3,0),V(3,F-1.5,-.4),V(9,4.4,-6),V(13,3.9,-10.5)],.13,MAT.galv,40);
+  // mangueras hidráulicas y acumulador
+  for(let i=0;i<3;i++)tube(g,[V(-2.1,.4+i*.35,.3),V(-3.2,-.2,1.4),V(-8,.12,6+i*.2),V(-12.4,.5,8.4+i*.2)],.035,std(0x8c1a12,{roughness:.6}),30);
+  const k=new THREE.Group();k.position.set(-14.5,0,9);g.add(k);box(k,4.2,.25,2.2,MAT.steel,0,.12,0);
+  for(let r=0;r<2;r++)for(let i=0;i<7;i++)cyl(k,.17,.17,1.5,MAT.red,-1.7+i*.5,1,-.45+r*.9,14);box(k,.9,1.4,1.8,MAT.blue,1.7,.95,0);
+  for(let i=0;i<3;i++){const d=cyl(k,.1,.1,.02,MAT.white,2.16,1.3,-.5+i*.5,16,'x')}
+  // múltiple de estrangulación
+  const cm=new THREE.Group();cm.position.set(9,0,-1.5);g.add(cm);box(cm,3.6,.2,1.8,MAT.steel,0,.1,0);rod(cm,V(-1.6,.8,0),V(1.6,.8,0),.08,MAT.galv);rod(cm,V(0,.4,-.7),V(0,1.4,-.7),.08,MAT.galv);
+  for(const x of[-1.2,-.4,.4,1.2])gateValve(cm,x,.8,0,'z');
+  tube(g,[V(1.9,-.42,0),V(3.6,-.3,0),V(6,.5,-.8),V(7.4,.8,-1.5)],.07,MAT.galv,20);
+}
+
+function buildSub(){
+  const g=part('sub');
+  for(let i=0;i<9;i++)boxT(g,13,.24,1.25,MAT.wood,0,.12,-7.4+i*1.85);
+  const sm=MAT.steel,bm=MAT.steelDk;
+  for(const sx of[-1,1])for(const off of[-.7,.7]){const x=sx*4.4+off;
+    bar(g,V(x,.6,-6.3),V(x,.6,6.3),.45,sm,.55);bar(g,V(x,F-.6,-6.3),V(x,F-.6,6.3),.45,sm,.55);
+    const zs=[-6.1,-3,0,3,6.1];zs.forEach(z=>bar(g,V(x,.3,z),V(x,F-.3,z),.36,sm));
+    for(let i=0;i<4;i++){rod(g,V(x,.9,zs[i]),V(x,F-.9,zs[i+1]),.07,bm,1);rod(g,V(x,F-.9,zs[i]),V(x,.9,zs[i+1]),.07,bm,1)}}
+  for(const sx of[-1,1])for(const z of[-6.1,0,6.1])for(const y of[.6,F-.6])bar(g,V(sx*4.4-.7,y,z),V(sx*4.4+.7,y,z),.3,sm);
+  for(const y of[.6,F-.6])bar(g,V(-5.1,y,-6.1),V(5.1,y,-6.1),.4,sm,.5);
+  bar(g,V(-5.1,.6,6.1),V(5.1,.6,6.1),.4,sm,.5);
+  stairs(g,V(6.3,.24,10.4),V(6.3,F-.1,3.2),1.05);boxT(g,1.5,.1,1.6,MAT.grate,6.05,F-.05,2.4);
+  // ancla de la línea muerta
+  const an=box(g,.7,.6,.9,MAT.blue,-3.1,F-.35,-3.8);RIG.deadAnchor=an;cyl(g,.35,.35,.5,MAT.steelDk,-3.1,F,-3.8,16,'x');
+}
+function buildFloor(){
+  const g=part('floor');
+  boxT(g,10.6,.35,12.6,MAT.plate,0,F-.175,0);
+  for(const[a,b]of[[[-5.3,-6.3],[5.3,-6.3]],[[5.3,-6.3],[5.3,1.8]],[[5.3,3.4],[5.3,6.3]],[[5.3,6.3],[1.1,6.3]],[[-1.1,6.3],[-5.3,6.3]],[[-5.3,6.3],[-5.3,-.2]],[[-5.3,-1.4],[-5.3,-6.3]]]){
+    const A=V(a[0],F,a[1]),B=V(b[0],F,b[1]);bar(g,V(A.x,F+.08,A.z),V(B.x,F+.08,B.z),.03,MAT.yellow,.16);handrail(g,[A,B])}
+  // mesa rotaria
+  box(g,2.2,.5,2.2,MAT.blue,0,F-.4,0);cyl(g,1.02,1.02,.12,MAT.steelDk,0,F+.04,0,32);lathe(g,[[.22,.11],[.5,.11],[.6,.07],[.95,.07],[.95,0]],MAT.steel,F,32);cyl(g,.22,.22,.02,MAT.dark,0,F+.105,0,20);
+  // setback de madera
+  boxT(g,2.8,.18,1.6,MAT.wood,-1.9,F+.09,1.75);boxT(g,2.8,.18,1.6,MAT.wood,1.9,F+.09,1.75);
+  // agujero de ratón
+  cyl(g,.16,.16,.1,MAT.dark,1.5,F+.05,-1.3,16);
+}
+function buildDrawworks(){
+  const g=part('drawworks');const z=-4.7;RIG.dwZ=z;
+  box(g,5.6,.3,2.6,MAT.steel,0,F+.15,z);
+  for(const s of[-1,1]){box(g,.7,2.1,2.3,MAT.blue,s*1.35,F+1.35,z);cyl(g,.75,.75,.25,MAT.steelDk,s*1.83,F+1.45,z,28,'x');cyl(g,.48,.48,1.05,MAT.blue,s*2.45,F+1,z+.1,20,'x');box(g,.9,.5,1.1,MAT.blue,s*2.45,F+.5,z+.1)}
+  const drum=new THREE.Group();drum.position.set(0,F+1.45,z);g.add(drum);RIG.drum=drum;
+  cyl(drum,.52,.52,1.95,MAT.steelDk,0,0,0,24,'x');for(const s of[-1,1])cyl(drum,.85,.85,.06,MAT.steel,s*.98,0,0,28,'x');
+  for(let i=0;i<9;i++){const t=new THREE.Mesh(new THREE.TorusGeometry(.56,.035,6,24),MAT.wire);t.rotation.y=Math.PI/2;t.position.x=-.85+i*.21;drum.add(t)}
+  const guard=new THREE.Mesh(new THREE.CylinderGeometry(.95,.95,2,24,1,true,-Math.PI/2,Math.PI),MAT.blue);guard.rotation.z=Math.PI/2;guard.position.set(0,F+1.5,z-.05);guard.material=MAT.blue;g.add(guard);
+}
+function buildDoghouse(){
+  const g=part('doghouse');const x=-7.5,z=-2.4;
+  for(const dx of[-1.6,1.6])for(const dz of[-1.9,1.9])bar(g,V(x+dx,0,z+dz),V(x+dx,F-.2,z+dz),.3,MAT.steel);
+  rod(g,V(x-1.6,.5,z-1.9),V(x-1.6,F-.6,z+1.9),.08,MAT.steelDk,1);rod(g,V(x+1.6,.5,z-1.9),V(x+1.6,F-.6,z+1.9),.08,MAT.steelDk,1);
+  boxT(g,3.6,.3,4.2,MAT.steel,x,F-.15,z);
+  boxT(g,3.6,3,4.2,MAT.white,x,F+1.5,z);
+  const gl=box(g,.06,1.3,3.4,MAT.glass,x+1.81,F+1.9,z);gl.castShadow=false;box(g,1.4,1.1,.06,MAT.glass,x+.6,F+1.9,z+2.11).castShadow=false;
+  box(g,1.2,.6,1,MAT.white,x-.5,F+3.3,z);
+  RIG.beacons=[];[[x+1.2,0xff3018],[x+.7,0xffb000]].forEach(([bx,c])=>{const b=new THREE.Mesh(new THREE.SphereGeometry(.17,12,10),std(c,{emissive:0x000000,roughness:.3}));b.position.set(bx,F+3.2,z-1.6);b.userData.c=c;g.add(b);RIG.beacons.push(b)});
+  // consola del perforador
+  const con=box(g,.8,.9,2,MAT.steelDk,x+1.1,F+.75,z);con.rotation.z=.25;
+  box(g,.04,.5,.8,std(0x103550,{emissive:0x0a3a5a,roughness:.2}),x+1.35,F+1.35,z-.4);
+  // pasarela al piso
+  boxT(g,.5,.1,1.6,MAT.grate,x+2.0,F-.05,z+1.6);
+  // panel remoto de BOP (en el piso, junto a la puerta)
+  const bp=new THREE.Group();bp.position.set(-4.85,F,-3.6);g.add(bp);RIG.bopPanel=bp;
+  box(bp,.12,1.1,.1,MAT.steel,0,.55,0);box(bp,.18,.7,.9,MAT.red,0,1.45,0);
+  const lab=new THREE.Mesh(new THREE.PlaneGeometry(.8,.18),std(0xffffff,{map:textTex(['PANEL REMOTO BOP'],{w:512,h:112,bg:'#b1281c'})}));lab.rotation.y=Math.PI/2;lab.position.set(.095,1.72,0);bp.add(lab);
+  const btn=(c,z)=>{const g=new THREE.Group();g.position.set(.12,1.42,z);bp.add(g);box(g,.08,.14,.22,std(c,{roughness:.4}),0,0,0);return g};RIG.bopBtn=btn(0x2e8b3a,-.18);RIG.bopBtn2=btn(0xe0b21c,.18);
+}
+
+const C=(sx,front,y)=>{const t=y/H;return V(sx*lerp(2.7,1.15,t),y,front?lerp(1.5,.65,t):lerp(-2.1,-1.05,t))};
+function buildMast(){
+  const m=part('mast');m.position.set(0,F,0);RIG.mast=m;
+  const pm=MAT.paint,pd=MAT.paintDk;
+  for(const sx of[-1,1])for(const fr of[0,1])bar(m,C(sx,fr,0),C(sx,fr,H),.4,pm);
+  for(const sx of[-1,1])for(const fr of[0,1])box(m,.9,.4,.9,MAT.steelDk,C(sx,fr,0).x,.2,C(sx,fr,0).z);
+  const step=3.1;
+  for(let y=step;y<=H+.01;y+=step){const y0=y-step;
+    for(const sx of[-1,1]){bar(m,C(sx,0,y),C(sx,1,y),.18,pd);rod(m,C(sx,0,y0),C(sx,1,y),.075,pd,1);rod(m,C(sx,1,y0),C(sx,0,y),.075,pd,1)}
+    bar(m,C(-1,0,y),C(1,0,y),.18,pd);rod(m,C(-1,0,y0),C(1,0,y),.075,pd,1);rod(m,C(1,0,y0),C(-1,0,y),.075,pd,1);
+    if(y>MONK+4)bar(m,C(-1,1,y),C(1,1,y),.18,pd)}
+  // rieles del top drive
+  for(const s of[-1,1]){bar(m,V(s*.5,4,-1.05),V(s*.5,H-3,-1.05),.18,MAT.steelDk);for(let y=6;y<H-3;y+=6)bar(m,V(s*.5,y,-1.05),V(s*.5,y,C(1,0,y).z),.1,MAT.steelDk)}
+  // escalera con jaula en el costado +x
+  const lad=new THREE.Group();m.add(lad);
+  const LX=y=>C(1,0,y).x+.3,LZ=-.35;
+  for(const dz of[-.22,.22])rod(lad,V(LX(0),0,LZ+dz),V(LX(H-1),H-1,LZ+dz),.03,MAT.galv,1);
+  for(let y=.3;y<H-1;y+=.3)rod(lad,V(LX(y),y,LZ-.22),V(LX(y),y,LZ+.22),.016,MAT.galv,1);
+  for(let y=2.4;y<H-1;y+=1.2){const t=new THREE.Mesh(new THREE.TorusGeometry(.38,.018,4,16,Math.PI),MAT.galv);t.position.set(LX(y)+.02,y,LZ);t.rotation.set(Math.PI/2,0,-Math.PI/2);lad.add(t)}
+  RIG.retract=box(m,.2,.28,.16,MAT.red,LX(MONK+1.5)+.05,MONK+1.6,LZ+.3);
+  // tubo vertical (standpipe)
+  rod(m,V(2.4,.3,1.25),V(1.71,19,.87),.09,MAT.galv);
+  RIG.hose=null;RIG.hoseY=-99;
+  // línea de escape (geronimo)
+  RIG.escape=rod(world,V(0,0,0),V(1,1,1),.02,MAT.wire);
+  buildCrown(m);buildBoard(m);buildBlock(m);
+}
+function buildCrown(m){
+  const g=part('crown',m);
+  box(g,3.6,.3,3.2,MAT.paintDk,0,H-.05,-.2);
+  for(let i=0;i<7;i++)cyl(g,.6,.6,.13,MAT.steelDk,-.75+i*.25,H+.75,0,24,'x');
+  cyl(g,.06,.06,2,MAT.galv,0,H+.75,0,8,'x');
+  const gd=new THREE.Mesh(new THREE.CylinderGeometry(.75,.75,2.1,20,1,true,-Math.PI/2,Math.PI),MAT.yellowW);gd.rotation.z=Math.PI/2;gd.position.set(0,H+.75,0);g.add(gd);
+  for(const s of[-1,1]){const sh=cyl(g,.45,.45,.12,MAT.steelDk,s*1.25,H+.55,0,20,'x');sh.rotation.y=s*.4}
+  for(const s of[-1,1])rod(g,V(s*1.4,H+.1,-1.4),V(0,H+4.2,-.9),.08,MAT.paint);bar(g,V(0,H+4.2,-.9),V(0,H+4.2,.6),.14,MAT.paint);
+  handrail(g,[V(-1.8,H+.1,-1.8),V(1.8,H+.1,-1.8),V(1.8,H+.1,1.4),V(-1.8,H+.1,1.4),V(-1.8,H+.1,-1.8)],1)
+}
+function buildBoard(m){
+  const g=part('monkey',m);const y=MONK;
+  for(const s of[-1,1]){bar(g,V(s*2.75,y,.95),V(s*2.75,y,3.45),.16,MAT.paintDk);bar(g,V(s*1.9,y,C(1,1,y).z),V(s*2.75,y,.95),.14,MAT.paintDk)}
+  bar(g,V(-2.75,y,3.45),V(2.75,y,3.45),.16,MAT.paintDk);
+  for(let z=1.23;z<3.4;z+=.3)for(const s of[-1,1])box(g,2.2,.1,.06,MAT.yellowW,s*1.65,y+.08,z);
+  boxT(g,.9,.06,2.6,MAT.grate,0,y,2.2);
+  handrail(g,[V(-.45,y,3.4),V(-.45,y,.95)],1.05);handrail(g,[V(.45,y,3.4),V(.45,y,.95)],1.05);handrail(g,[V(-2.75,y,3.5),V(2.75,y,3.5)],1.1);
+  // línea de vida
+  RIG.lifeline=rod(g,V(-1.75,y+2.25,.98),V(1.75,y+2.25,.98),.012,MAT.wire);
+  // pestillos de los peines (fila de práctica)
+  RIG.latch=new THREE.Group();RIG.latch.position.set(-.52,y+.14,1.23);g.add(RIG.latch);rod(RIG.latch,V(0,0,0),V(0,0,.3),.018,MAT.red);RIG.latch.rotation.x=-1.3;
+  // tablero de señales (radio)
+  const sp=new THREE.Group();sp.position.set(.55,y+1.05,1.3);g.add(sp);RIG.signal=sp;
+  box(sp,.08,.42,.5,MAT.steelDk,0,0,0);
+  const mk=(c,txt,dz)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(.06,.12,.12),std(c,{roughness:.4}));b.position.set(-.06,.06,dz);sp.add(b);const l=new THREE.Mesh(new THREE.PlaneGeometry(.16,.06),new THREE.MeshBasicMaterial({map:textTex([txt],{w:256,h:96,bg:'#111',font:'bold 56px Arial'})}));l.rotation.y=-Math.PI/2;l.position.set(-.045,-.08,dz);sp.add(l);return b};
+  RIG.btnUp=mk(0x2e9b45,'SUBIR',-.16);RIG.btnStop=mk(0xd22a18,'PARAR',0);RIG.btnDown=mk(0xe0b21c,'BAJAR',.16);sp.rotation.y=-.5;
+  // cuerda de encuelle enrollada
+  RIG.coil=new THREE.Mesh(new THREE.TorusGeometry(.13,.035,8,20),std(0xe8dcb4,{roughness:.9}));RIG.coil.position.set(-.48,y+.92,1.25);RIG.coil.rotation.y=Math.PI/2;g.add(RIG.coil);
+  // encuellador (vista en 3.ª persona)
+  const d=makePerson({suit:0xd8661c,harness:true});d.g.position.set(0,y+.03,1.12);d.g.rotation.y=Math.PI;g.add(d.g);RIG.derrick=d;
+  RIG.lanyard=rod(g,V(0,y+1.45,1.25),V(0,y+2.25,.98),.012,std(0x1d4fa0));
+}
+function buildBlock(m){
+  const g=part('block',m);RIG.block=g;
+  for(const s of[-1,1])box(g,.1,2,1.2,MAT.yellow,s*.5,0,0);cyl(g,.6,.6,1.1,MAT.yellow,0,1,0,24,'x');
+  for(let i=0;i<6;i++)cyl(g,.55,.55,.1,MAT.steelDk,-.37+i*.15,.55,0,24,'x');
+  box(g,1.05,.6,.95,MAT.yellow,0,-1.15,0);cyl(g,.12,.12,.5,MAT.steelDk,0,-1.6,0,12);
+  const hook=new THREE.Mesh(new THREE.TorusGeometry(.28,.09,10,20,Math.PI*1.4),MAT.yellow);hook.position.set(0,-2.05,0);hook.rotation.z=Math.PI*.8;g.add(hook);
+  for(const s of[-1,1])rod(g,V(s*.25,-1.9,0),V(s*.42,-2.5,0),.05,MAT.steelDk);
+  // top drive
+  box(g,1.05,1.5,.95,std(0x3f4b55,{map:TEX.grime,roughness:.5,metalness:.5}),0,-3.35,0);cyl(g,.42,.42,.55,MAT.blue,0,-2.4,0,20);
+  tube(g,[V(.1,-2.65,.35),V(.3,-2.3,.6),V(.35,-2.6,.85)],.06,MAT.galv,10);
+  for(const s of[-1,1])box(g,.18,1,.7,MAT.steelDk,s*.5,-3.35,-.7);
+  cyl(g,.1,.1,.6,MAT.steel,0,-4.35,0,12);
+  for(const s of[-1,1])rod(g,V(s*.33,-4.1,0),V(s*.33,-5.6,0),.045,MAT.steelDk);
+  // elevador
+  const el=new THREE.Group();el.position.y=-EOFF;g.add(el);RIG.elev=el;
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.19,.075,10,22),MAT.steelDk);ring.rotation.x=Math.PI/2;el.add(ring);
+  box(el,.5,.16,.22,MAT.steelDk,0,0,-.18);
+  RIG.elevLatch=new THREE.Group();RIG.elevLatch.position.set(.2,0,.18);el.add(RIG.elevLatch);box(RIG.elevLatch,.08,.08,.26,MAT.red,0,0,.1);
+  // líneas entre corona y bloque
+  RIG.lines=[];for(let i=0;i<8;i++){const l=new THREE.Mesh(UC6,MAT.wire);l.userData.cx=-.7+i*.2;l.userData.bx=-.37+(i%6)*.15;l.userData.keepMat=true;g.add(l);RIG.lines.push(l)}
+  RIG.fast=rod(world,V(0,0,0),V(0,1,0),.03,MAT.wire);RIG.dead=rod(world,V(0,0,0),V(0,1,0),.03,MAT.wire);
+  setBlock(10);
+}
+function setBlock(y){
+  RIG.blockY=y;RIG.block.position.y=y;
+  for(const l of RIG.lines)orient(l,V(l.userData.bx,.55,0),V(l.userData.cx,H+.15-y,0),.022);
+  if(Math.abs(y-RIG.hoseY)>.15){RIG.hoseY=y;if(RIG.hose){RIG.mast.remove(RIG.hose);RIG.hose.geometry.dispose()}
+    const a=V(1.71,19.3,.87),b=V(.35,y-2.6,.85),mid=a.clone().lerp(b,.5);mid.y=Math.min(a.y,b.y)-3.5-Math.abs(a.y-b.y)*.15;
+    RIG.hose=tube(RIG.mast,[a,a.clone().add(V(-.2,.6,0)),mid,b],.07,MAT.rubber,30);RIG.hose.castShadow=true}
+}
+const elevY=()=>F+RIG.blockY-EOFF;
+function updateLines(){
+  const up=Math.abs(RIG.mast.rotation.x)<.01&&RIG.parts.block.visible&&RIG.parts.mast.visible;
+  RIG.fast.visible=RIG.dead.visible=up&&RIG.parts.drawworks.visible;RIG.escape.visible=up&&RIG.parts.monkey.visible;
+  if(!up)return;
+  orient(RIG.fast,V(1.25,F+H+.5,0),V(.8,F+1.95,RIG.dwZ+.3),.03);orient(RIG.dead,V(-1.25,F+H+.5,0),V(-3.1,F+.2,-3.8),.03);
+  orient(RIG.escape,V(-2.7,F+MONK+2,2.8),V(-14,.4,44),.02);
+}
+
+function buildMud(){
+  const g=part('mud');
+  for(const z of[-9.5,0,9.5]){boxT(g,3.2,2.6,9,MAT.tank,14.5,1.3,z);boxT(g,3.2,.06,9,MAT.grate,14.5,2.63,z);
+    handrail(g,[V(12.9,2.6,z-4.5),V(12.9,2.6,z+4.5)]);handrail(g,[V(16.1,2.6,z-4.5),V(16.1,2.6,z+4.5)]);
+    for(const dz of[-2,2]){cyl(g,.25,.25,.5,MAT.blue,14.5,2.95,z+dz,12);box(g,.4,.3,.4,MAT.blue,14.5,3.3,z+dz)}}
+  RIG.shakers=[];for(const z of[-12,-9]){const s=new THREE.Group();s.position.set(14.5,2.6,z);g.add(s);box(s,2.2,.5,2.4,MAT.blue,0,.25,0);const d=box(s,1.8,.08,2.2,MAT.grate,0,.75,0);d.rotation.x=.12;for(const x of[-1,1])cyl(s,.2,.2,.3,MAT.steelDk,x*1.15,.6,0,12,'x');RIG.shakers.push(s)}
+  cyl(g,.6,.6,2.4,MAT.tank,17.4,3.8,-6,16);
+  stairs(g,V(11.2,0,4),V(12.9,2.6,4),1);
+  for(const z of[-3,3]){const p=new THREE.Group();p.position.set(22.5,0,z);g.add(p);box(p,6.4,.3,2.4,MAT.steel,0,.15,0);boxT(p,2.4,1.9,2,MAT.red,.4,1.25,0);
+    for(let i=0;i<3;i++)cyl(p,.26,.26,1.3,MAT.red,-1.5,1.05,-.6+i*.6,16,'x');box(p,.4,.5,2,MAT.red,-2.15,1.05,0);
+    box(p,2,1.4,1.4,MAT.blue,2.6,1.05,0);box(p,.3,1.4,1.7,MAT.yellowW,1.55,1.35,0);cyl(p,.12,.12,1.6,MAT.galv,-1.6,2.1,0,10,'z');
+    tube(p,[V(-2.3,1.1,0),V(-5,.35,0),V(-6.4,.35,0)],.1,MAT.galv,12)}
+  tube(g,[V(20.6,2.1,-3),V(14,.35,-1.6),V(6.4,.35,1.2),V(4.6,.4,1.2),V(2.4,F+.3,1.25)],.1,MAT.galv,40);
+  // tanque de viaje
+  const tt=new THREE.Group();tt.position.set(6.4,0,-3.2);g.add(tt);RIG.tripTank=tt;
+  cyl(tt,.75,.75,3.2,MAT.tank,0,1.6,0,20);box(tt,.12,2.8,.06,MAT.white,.76,1.6,0);
+  RIG.ttLevel=box(tt,.14,.06,.08,std(0xd22a18,{emissive:0x500000}),.78,1.6,0);RIG.ttLevel.userData.keepMat=true;
+}
+function buildRacks(){
+  const g=part('rack');
+  boxT(g,1.7,1.1,13,MAT.plate,0,.55,19);handrail(g,[V(.85,1.1,12.6),V(.85,1.1,25.4)],.9);
+  bar(g,V(0,F,6.3),V(0,1.15,12.6),1.6,MAT.steel,.22);for(const s of[-1,1])handrail(g,[V(s*.8,F,6.3),V(s*.8,1.15,12.6)],.9);
+  for(const s of[-1,1])for(const z of[13.5,17.5,21.5,25])box(g,5.6,.75,.35,MAT.steelDk,s*5.3,.375,z);
+  const N=2*3*12,bd=new THREE.InstancedMesh(new THREE.CylinderGeometry(.064,.064,8.6,10),MAT.pipe,N),tj=new THREE.InstancedMesh(new THREE.CylinderGeometry(.085,.085,.42,12),MAT.tj,N*2);
+  const m=new THREE.Matrix4(),q=new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI/2,0,0));let i=0,j=0;
+  for(const s of[-1,1])for(let l=0;l<3;l++)for(let k=0;k<12;k++){const x=s*(3+k*.19+(l%2)*.09),y=.84+l*.16;m.compose(V(x,y,19.2),q,V(1,1,1));bd.setMatrixAt(i++,m);for(const dz of[-4.5,4.5]){m.compose(V(x,y,19.2+dz),q,V(1,1,1));tj.setMatrixAt(j++,m)}}
+  g.add(bd);g.add(tj);for(const s of[-1,1])for(let l=0;l<2;l++)for(const z of[13.5,17.5,21.5,25])box(g,2.5,.05,.12,MAT.wood,s*4.1,.92+l*.16,z);
+}
+function buildTools(){
+  const g=new THREE.Group();g.userData.part='floor';world.add(g);RIG.tools=g;
+  // llaves de fuerza colgantes
+  RIG.tongs=[];[[1.5,-.9],[-1.5,-.9]].forEach(([x,z],i)=>{const t=new THREE.Group();t.position.set(x,F+1.05,z);g.add(t);box(t,1.2,.32,.42,MAT.blue,0,0,0);const jaw=new THREE.Mesh(new THREE.TorusGeometry(.2,.07,8,16,Math.PI*1.5),MAT.steelDk);jaw.rotation.x=Math.PI/2;jaw.position.x=-.7*Math.sign(x);t.add(jaw);rod(t,V(.6*Math.sign(x),0,0),V(1.2*Math.sign(x),0,0),.04,MAT.yellow);t.rotation.y=i?Math.PI:0;
+    const cab=rod(g,V(x,F+1.2,z),V(x*.8,F+14,-1),.015,MAT.wire);RIG.tongs.push({t,cab,home:t.position.clone()})});
+  // cuñas
+  RIG.slips=new THREE.Group();RIG.slips.position.set(0,F+.12,0);g.add(RIG.slips);for(let i=0;i<3;i++){const s=box(RIG.slips,.14,.32,.12,MAT.steelDk,Math.cos(i*2.1)*.13,.12,Math.sin(i*2.1)*.13);s.rotation.y=-i*2.1;const h=rod(RIG.slips,V(Math.cos(i*2.1)*.2,.28,Math.sin(i*2.1)*.2),V(Math.cos(i*2.1)*.45,.5,Math.sin(i*2.1)*.45),.02,MAT.steel)}
+  RIG.slips.visible=false;
+  // sarta en el pozo y parada en movimiento
+  RIG.string=cyl(world,.064,.064,F+.9+80,MAT.pipe,0,(F+.9-80)/2,0,12);RIG.string.visible=false;
+  RIG.stand=makeStand();world.add(RIG.stand);RIG.stand.visible=false;RIG.racked=[];
+  RIG.rope=rod(world,V(0,0,0),V(0,1,0),.016,std(0xe8dcb4,{roughness:.9}));RIG.rope.visible=false;
+  // paradas ya encuelladas (banco derecho) — instanciadas
+  const n=16,bd=new THREE.InstancedMesh(new THREE.CylinderGeometry(.064,.064,LEN,10),MAT.pipe,n),tj=new THREE.InstancedMesh(new THREE.CylinderGeometry(.084,.084,.46,12),MAT.tj,n*4);const mx=new THREE.Matrix4();let k=0;
+  for(let i=0;i<n;i++){const x=.78+(i%8)*.21,z=i<8?SLOTZ:SLOTZ+.3;const base=V(x,F+.2,1.62+(i<8?0:.3)),top=V(x,F+.2+LEN,z);const d=top.clone().sub(base).normalize();const q=new THREE.Quaternion().setFromUnitVectors(Y,d);
+    mx.compose(base.clone().addScaledVector(d,LEN/2),q,V(1,1,1));bd.setMatrixAt(i,mx);for(let j=0;j<4;j++){mx.compose(base.clone().addScaledVector(d,j*LEN/3+(j===0?.23:j===3?-.23:0)),q,V(1,1,1));tj.setMatrixAt(k++,mx)}}
+  g.add(bd);g.add(tj);RIG.rackedStatic=[bd,tj];
+  // válvula de seguridad (FOSV) y su llave, junto a la cabina
+  const fs=new THREE.Group();fs.position.set(-4.4,F,-1.2);g.add(fs);box(fs,.5,.8,.4,MAT.steel,0,.4,0);
+  RIG.fosv=new THREE.Group();RIG.fosv.position.set(0,1.05,0);fs.add(RIG.fosv);lathe(RIG.fosv,[[.06,-.35],[.1,-.35],[.1,-.2],[.13,-.15],[.13,.15],[.1,.2],[.1,.35],[.06,.35]],MAT.yellow,0,20);
+  RIG.fosvKey=new THREE.Group();RIG.fosvKey.position.set(.35,.95,0);fs.add(RIG.fosvKey);bar(RIG.fosvKey,V(0,0,0),V(0,.45,0),.04,MAT.red);box(RIG.fosvKey,.05,.05,.16,MAT.red,0,0,.06);
+  // múltiple de presión en el piso (para registrar SIDPP/SICP)
+  const gp=new THREE.Group();gp.position.set(4.6,F,-3.2);g.add(gp);RIG.gauges=gp;box(gp,.1,1.2,.1,MAT.steel,0,.6,0);box(gp,.12,.5,.8,MAT.steelDk,0,1.35,0);
+  for(const dz of[-.2,.2]){const d=cyl(gp,.15,.15,.04,MAT.white,-.08,1.4,dz,20,'x');}
+  const gl=new THREE.Mesh(new THREE.PlaneGeometry(.7,.12),new THREE.MeshBasicMaterial({map:textTex(['SIDPP   ·   SICP'],{w:512,h:88,bg:'#111',font:'bold 48px Arial'})}));gl.rotation.y=-Math.PI/2;gl.position.set(-.07,1.66,0);gp.add(gl);
+}
+function buildCrew(){
+  const g=new THREE.Group();world.add(g);RIG.crew=g;
+  const a=makePerson({});a.g.position.set(1.45,F,.95);a.g.rotation.y=-2.3;g.add(a.g);RIG.hand1=a;
+  const b=makePerson({});b.g.position.set(-1.35,F,.9);b.g.rotation.y=2.4;g.add(b.g);RIG.hand2=b;
+  const d=makePerson({suit:0x2a5a86,hat:0xf3f3f0});d.g.position.set(-7.0,F,-2.3);d.g.rotation.y=Math.PI/2;g.add(d.g);RIG.driller=d;
+  const r1=makePerson({suit:0xd8661c});r1.g.position.set(3.4,0,15);r1.g.rotation.y=-.6;g.add(r1.g);
+  const r2=makePerson({suit:0x2f7d4a,hat:0xffffff});r2.g.position.set(11.4,0,-11.6);r2.g.rotation.y=1.2;g.add(r2.g);RIG.mudman=r2;
+  // trabajador que sube por la escalera (casos)
+  const cl=makePerson({suit:0xd8661c,harness:true});cl.g.visible=false;RIG.mast.add(cl.g);cl.g.rotation.y=-Math.PI/2;RIG.climber=cl;
+}
+function buildCrane(){
+  const c=new THREE.Group();c.position.set(20,0,-17);world.add(c);c.visible=false;RIG.crane=c;
+  const y=MAT.yellowW;
+  boxT(c,3,1.3,12,y,0,1.35,0);for(const z of[-4.5,-3,3,4.5])for(const s of[-1,1])cyl(c,.55,.55,.5,MAT.rubber,s*1.35,.55,z,18,'x');
+  box(c,2.6,1.6,2,y,0,2.4,5.4);box(c,2.4,.9,.06,MAT.glass,0,2.6,6.41);
+  for(const z of[-4.8,4.8])for(const s of[-1,1]){bar(c,V(s*1.4,1.2,z),V(s*3.6,.2,z),.25,MAT.steelDk);box(c,.7,.12,.7,MAT.steel,s*3.6,.08,z)}
+  const sl=new THREE.Group();sl.position.set(0,2,-2);c.add(sl);RIG.slew=sl;
+  cyl(sl,1.2,1.2,.4,MAT.steelDk,0,.2,0,24);box(sl,2.6,1.6,4,y,0,1.2,-.6);box(sl,2.4,1.2,1.4,MAT.steelDk,0,1,-3);box(sl,1.1,1.5,1.6,y,1.4,1.4,1.4);
+  const bp=new THREE.Group();bp.position.set(0,2.1,1.5);sl.add(bp);RIG.boom=bp;
+  RIG.boomSec=[];[[1,.9,.4],[.82,.72,.35],[.64,.56,.3]].forEach(([w,h],i)=>{const geo=new THREE.BoxGeometry(w,h,1);geo.translate(0,0,.5);const s=new THREE.Mesh(geo,y);bp.add(s);RIG.boomSec.push(s)});
+  RIG.hookCab=rod(world,V(0,0,0),V(0,1,0),.03,MAT.wire);RIG.hookCab.visible=false;
+  const hb=new THREE.Group();world.add(hb);hb.visible=false;RIG.hook=hb;box(hb,.5,.7,.35,MAT.yellow,0,.35,0);const hk=new THREE.Mesh(new THREE.TorusGeometry(.16,.05,8,14,Math.PI*1.4),MAT.steelDk);hk.position.y=-.1;hk.rotation.z=Math.PI*.8;hb.add(hk);
+  RIG.slings=[0,1,2,3].map(()=>{const r=rod(world,V(0,0,0),V(0,1,0),.02,std(0xe0b21c));r.visible=false;return r});
+}
+function craneHook(p){
+  const c=RIG.crane,piv=V(0,0,0);RIG.boom.updateMatrixWorld(true);RIG.boom.getWorldPosition(piv);
+  const dx=p.x-c.position.x,dz=p.z-c.position.z;RIG.slew.rotation.y=Math.atan2(dx,dz);RIG.slew.updateMatrixWorld(true);RIG.boom.getWorldPosition(piv);
+  const Rh=Math.max(4,Math.hypot(p.x-piv.x,p.z-piv.z)),hy=Math.max(p.y+5-piv.y,3),L=clamp(Math.hypot(Rh,hy),10,80),a=Math.atan2(hy,Rh);
+  RIG.boom.rotation.x=-a;RIG.boomSec[0].scale.z=L*.42;RIG.boomSec[1].position.z=L*.38;RIG.boomSec[1].scale.z=L*.36;RIG.boomSec[2].position.z=L*.72;RIG.boomSec[2].scale.z=L*.28;
+  const tip=V(0,0,L).applyMatrix4(RIG.boom.matrixWorld);
+  RIG.hook.position.copy(p);RIG.hook.visible=true;RIG.hookCab.visible=true;orient(RIG.hookCab,tip,V(p.x,p.y+.7,p.z),.03);
+}
+function buildInstructor(){
+  const I=makePerson({suit:0x1f3a5c,hat:0xf6f6f2,hatStripe:0x2f7d4a,skin:0x9a6a4c,mustache:true,glasses:false,glove:0xd8d0bc});
+  world.add(I.g);RIG.ins=I;I.g.position.set(4,0,10);
+  RIG.pipCam=new THREE.PerspectiveCamera(30,150/170,.05,8);
+}
+function insAt(pos,face,point){const I=RIG.ins;I.g.visible=true;I.g.position.copy(pos);I.face=face||null;I.point=point||null}
+async function insWalk(to,speed=1.6){const I=RIG.ins,from=I.g.position.clone(),d=from.distanceTo(to);if(d<.05)return;if(d>18){I.g.position.copy(to);return}
+  I.anim='walk';I.g.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);await tweenP(d/speed,p=>I.g.position.lerpVectors(from,to,p));I.anim='idle'}
+function insFace(dt){const I=RIG.ins;if(!I||I.anim==='walk'||I.anim==='climb')return;const tgt=I.face||CAM.pos;const a=Math.atan2(tgt.x-I.g.position.x,tgt.z-I.g.position.z);let d=a-I.g.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));I.g.rotation.y+=d*Math.min(1,dt*4)}
+
+/* ---------- vista del pozo en corte (control de pozo) ---------- */
+function buildWell(){
+  const g=new THREE.Group();world.add(g);g.visible=false;RIG.well=g;
+  const cas=new THREE.Mesh(new THREE.CylinderGeometry(.62,.62,70,24,1,true),new THREE.MeshBasicMaterial({color:lin(0x9aa4aa),transparent:true,opacity:.35,side:THREE.DoubleSide,fog:false}));cas.position.y=-35;g.add(cas);
+  const mud=new THREE.Mesh(new THREE.CylinderGeometry(.58,.58,70,24),new THREE.MeshBasicMaterial({color:lin(0x8a5a2e),transparent:true,opacity:.5,fog:false}));mud.position.y=-35;g.add(mud);
+  cyl(g,.15,.15,66,MAT.pipe,0,-33,0,12);cyl(g,.3,.2,.6,MAT.steelDk,0,-66.3,0,12);
+  [[-6,0x9a8460],[-22,0x86745a],[-40,0x6e6452],[-58,0x4a3c2e]].forEach(([y,c],i)=>{const l=new THREE.Mesh(new THREE.BoxGeometry(18,i===3?12:16,.3),new THREE.MeshBasicMaterial({color:lin(c),fog:false}));l.position.set(0,y-(i===3?2:0),-3);g.add(l)});
+  const lab=label3D('Formación productora (gas)',1.6);lab.position.set(0,-60,-2.6);g.add(lab);
+  const n=60;const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3));
+  RIG.bubbles=new THREE.Points(geo,new THREE.PointsMaterial({color:0xffffff,size:.4,fog:false,map:TEX.dot,transparent:true,depthWrite:false}));RIG.bubbles.userData.seed=[...Array(n)].map(()=>({y:-66+R()*65,a:R()*6.28,r:.25+R()*.3,on:false}));RIG.bubbles.frustumCulled=false;RIG.bubbles.material.depthTest=false;RIG.bubbles.renderOrder=6;g.add(RIG.bubbles);RIG.kick=0;
+}
+function updateBubbles(dt){if(!RIG.well.visible)return;const s=RIG.bubbles.userData.seed,pos=RIG.bubbles.geometry.attributes.position;const act=Math.floor(s.length*RIG.kick);
+  s.forEach((b,i)=>{if(i<act){b.y+=dt*(1.2+RIG.kick*4);if(b.y>-.5)b.y=-66+R()*3;pos.setXYZ(i,Math.cos(b.a)*b.r,b.y,Math.sin(b.a)*b.r)}else pos.setXYZ(i,0,-200,0)});pos.needsUpdate=true}
+
+/* ---------- efectos: lodo y gas ---------- */
+function particles(n,color,size,op){const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3));const p=new THREE.Points(geo,new THREE.PointsMaterial({color,size,map:TEX.dot,transparent:true,opacity:op,depthWrite:false}));p.userData.s=[...Array(n)].map(()=>({p:V(0,-999,0),v:V(),t:R()*2}));p.visible=false;p.frustumCulled=false;world.add(p);return p}
+function buildFX(){RIG.spray=particles(260,0x5d4129,.16,.9);RIG.gas=particles(220,0xd9d27a,3.2,.18);RIG.fx={spray:0,gas:0}}
+function updateFX(dt){
+  const sp=RIG.spray,gs=RIG.gas;sp.visible=RIG.fx.spray>0;gs.visible=RIG.fx.gas>0;
+  if(sp.visible){const pos=sp.geometry.attributes.position;sp.userData.s.forEach((q,i)=>{q.t-=dt;if(q.t<=0||q.p.y<F){q.p.set((R()-.5)*.2,F+.9,(R()-.5)*.2);q.v.set((R()-.5)*1.6,2+R()*3*RIG.fx.spray,(R()-.5)*1.6);q.t=1+R()}q.v.y-=9.8*dt;q.p.addScaledVector(q.v,dt);pos.setXYZ(i,q.p.x,q.p.y,q.p.z)});pos.needsUpdate=true}
+  if(gs.visible){const pos=gs.geometry.attributes.position;gs.material.opacity=.2*RIG.fx.gas;gs.userData.s.forEach((q,i)=>{q.t-=dt;if(q.t<=0){const src=i%2?V(0,F+.5,0):V(14.5,3,-10.5);q.p.copy(src).add(V((R()-.5)*3,R()*1.5,(R()-.5)*3));q.v.set((R()-.5)*.6,.15+R()*.3,.9+R()*.8);q.t=4+R()*5}q.p.addScaledVector(q.v,dt);pos.setXYZ(i,q.p.x,q.p.y,q.p.z)});pos.needsUpdate=true}
+}
+/* ===================================================================== GUIONES DE LOS MÓDULOS */
+const head=(eb,t,b='')=>`<div class="eyebrow">${eb}</div><h3>${t}</h3>${b}`;
+const stepsHTML=(list,cur)=>`<ul class="steps">${list.map((s,i)=>`<li class="${i<cur?'done':i===cur?'now':''}">${s}</li>`).join('')}</ul>`;
+const sayW=t=>w(say(t));
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const sleep=ms=>w(wait(ms));
+const WP=a=>V(a[0],a[1],a[2]);
+function aim(obj){const p=obj.isVector3?obj:obj.getWorldPosition(V(0,0,0));const d=p.clone().sub(CAM.fp.pos);fpLook(Math.atan2(-d.x,-d.z),Math.atan2(d.y,Math.hypot(d.x,d.z)))}
+function proxy(g,size,pos){const m=new THREE.Mesh(UB,new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));m.scale.setScalar(size);if(pos)m.position.copy(pos);m.castShadow=false;g.add(m);return m}
+function marker(pos,label){const g=new THREE.Group();g.position.copy(pos);world.add(g);const b=new THREE.Mesh(new THREE.BoxGeometry(.28,.5,.28),std(0xf0a81c,{transparent:true,opacity:.45,emissive:0x5a3a00}));g.add(b);proxy(g,.5);if(label){const l=label3D(label,.32);l.position.y=.42;g.add(l)}return g}
+let TEMP=[];function temp(o){TEMP.push(o);return o}
+function clearTemp(){TEMP.forEach(o=>{unact(o);o.parent&&o.parent.remove(o)});TEMP=[]}
+function gauge(on,title,foot,max,lo,hi){$('#gauge').hidden=!on;if(!on)return;$('#gTitle').innerHTML=title+'<br><b class="mono" id="gVal">—</b>';$('#gFoot').textContent=foot;GAUGE={max,lo,hi};
+  $('#gBand').style.bottom=(lo/max*100)+'%';$('#gBand').style.height=((hi-lo)/max*100)+'%'}
+let GAUGE={max:1};
+function gaugeVal(v,txt){$('#gMark').style.bottom=`calc(${clamp(v/GAUGE.max,0,1)*100}% - 1px)`;const e=$('#gVal');if(e)e.textContent=txt}
+
+/* ---------- estado base de la escena ---------- */
+function saveHome(){RIG.home=new Map();const objs=Object.values(RIG.parts).concat([RIG.fosv,RIG.fosvKey,RIG.climber.g,RIG.latch,RIG.elevLatch,RIG.coil]);objs.forEach(o=>RIG.home.set(o,{parent:o.parent,p:o.position.clone(),q:o.quaternion.clone(),s:o.scale.clone()}))}
+function restoreHome(){RIG.home.forEach((h,o)=>{if(o.parent!==h.parent)h.parent.add(o);o.position.copy(h.p);o.quaternion.copy(h.q);o.scale.copy(h.s);o.visible=true})}
+let NIGHT=false,nightLights=[];
+function setNight(on){NIGHT=on;const u=sky.material.uniforms;u.top.value.set(on?0x0a1424:0x3f78b5);u.hor.value.set(on?0x2a3242:0xd4e0e6);u.bot.value.set(on?0x15140f:0x9c9682);
+  sun.intensity=on?.12:2.1;scene.children.forEach(c=>{if(c.isHemisphereLight)c.intensity=on?.18:.55});scene.fog.color.set(on?0x1a2230:0xc9d5dc);
+  if(on&&!nightLights.length){[[0,F+9,6],[10,9,-6],[-6,9,14],[0,F+20,-2]].forEach(p=>{const l=new THREE.PointLight(0xfff0d0,1.4,55,1.6);l.position.set(...p);scene.add(l);nightLights.push(l)})}
+  nightLights.forEach(l=>l.visible=on);RIG.lamps.forEach(l=>l.material.emissiveIntensity=on?3:1.3)}
+function resetScene(){
+  restoreHome();clearTemp();setNight(false);
+  RIG.mast.rotation.x=0;setBlock(10);
+  for(const k in RIG.parts)RIG.parts[k].visible=true;
+  RIG.tools.visible=true;RIG.crew.visible=true;RIG.derrick.g.visible=true;RIG.climber.g.visible=false;RIG.lanyard.visible=true;
+  RIG.crane.visible=false;RIG.hook.visible=false;RIG.hookCab.visible=false;RIG.slings.forEach(s=>s.visible=false);
+  RIG.stand.visible=false;RIG.racked.forEach(r=>world.remove(r));RIG.racked=[];RIG.string.visible=false;RIG.slips.visible=false;RIG.rope.visible=false;
+  RIG.latch.rotation.x=-1.3;RIG.elevLatch.rotation.y=0;RIG.coil.visible=true;
+  RIG.tongs.forEach(t=>{t.t.position.copy(t.home);t.t.rotation.y=t.home.x>0?0:Math.PI});
+  RIG.kick=0;RIG.well.visible=false;groundGhost(false);MODE.under=false;RIG.fx.spray=0;RIG.fx.gas=0;MODE.alarm=false;RIG.annular.material.color.copy(lin(0xb1281c));
+  RIG.people.forEach(p=>{p.anim='idle';p.point=null;p.g.rotation.z=0});RIG.hand2.g.position.set(-1.35,F,.9);ground.visible=true;RIG.mudman.g.position.set(11.4,0,-11.6);
+  highlight(null);insAt(V(4.6,F,4.6));RIG.ins.face=null;
+  gauge(false);$('#cams').hidden=false;MODE.tick=null;MODE.onPart=null;setSub('—');task('');
+  lookFrom([44,30,52],[0,16,0]);station(V(6,F,6),.7);
+}
+function groundGhost(on){ground.traverse(o=>{if(o.isMesh){o.material.transparent=on;o.material.opacity=on?.22:1;o.material.depthWrite=!on}});RIG.parts.cellar.traverse(o=>{if(o.isMesh){o.material.transparent=on;o.material.opacity=on?.25:1}})}
+
+/* ---------- utilidades de evaluación ---------- */
+async function quizFlow(id){
+  const Q=QUIZ[id];let ok=0;
+  for(let i=0;i<Q.length;i++){const q=Q[i];say(q.q);
+    const v=+(await ask(head(`Evaluación · ${i+1} de ${Q.length}`,q.q),q.o.map((o,j)=>({t:o,v:String(j)}))));
+    const good=v===q.a;if(good)ok++;
+    const opts=q.o.map((o,j)=>`<div class="opt ${j===q.a?'right':j===v?'wrong':''}">${o}</div>`).join('');
+    say((good?'Correcto. ':'No es así. ')+q.e);
+    await ask(head(`Evaluación · ${i+1} de ${Q.length}`,q.q,`<div class="list">${opts}</div><div class="fb ${good?'ok':'bad'}">${q.e}</div>`),[{t:i<Q.length-1?'Siguiente pregunta':'Ver resultado',v:'n'}]);
+  }
+  return Math.round(ok/Q.length*100)}
+async function result(score,detail){
+  const {prev,best}=complete(MODE.id,score);const ok=score>=PASS;
+  say(ok?`Aprobaste con ${score} puntos. Buen trabajo.`:`Obtuviste ${score} puntos. Necesitas ${PASS} para aprobar. Repasa y vuelve a intentarlo.`);
+  const v=await ask(`<div class="eyebrow">Resultado</div><div class="score mono" style="color:var(${ok?'--ok':'--bad'})">${score}</div>
+    <p><span class="chip ${ok?'ok':'bad'}">${ok?'Aprobado':'No aprobado'}</span> <span class="muted">Mínimo ${PASS} · Mejor: ${best}${prev!=null&&score>prev?' (nuevo récord)':''}</span></p>${detail?`<p class="muted">${detail}</p>`:''}`,
+    [{t:'Repetir el módulo',v:'retry'},{t:'Volver a los módulos',v:'hub'}]);
+  if(v==='retry')openModule(MODE.id);else backToHub()}
+async function startChoice(title,txt){return ask(head('Cómo empezar',title,`<p>${txt}</p>`),[{t:'Ver la explicación y la demostración (recomendado)',v:'demo'},{t:'Ir directo a la práctica',v:'practice'}])}
+
+/* ===================================================================== 1 · HSE */
+const HSE_STEPS=['Bienvenida','Ponte el EPP','Línea de fuego','Trabajo en alturas','Alarma de H2S','Autoridad para detener','Evaluación'];
+function buildEPPItems(){
+  const e=RIG.eppStation,items={};
+  EPP.forEach((it,i)=>{const g=new THREE.Group();g.position.set(-1.6+i*.355,.94,-.6);e.add(g);items[it.k]=g;temp(g);
+    const hm=c=>std(c,{roughness:.5,metalness:.05});
+    if(it.k==='casco'){const d=new THREE.Mesh(new THREE.SphereGeometry(.14,20,10,0,Math.PI*2,0,Math.PI/2),hm(0xf2d22e));g.add(d);cyl(g,.17,.17,.012,hm(0xf2d22e),0,0,.02,24)}
+    if(it.k==='gafas'){box(g,.17,.05,.02,std(0x2a3640,{metalness:.6,roughness:.1,transparent:true,opacity:.7}),0,.03,0);box(g,.02,.012,.14,hm(0x222222),-.085,.03,-.07);box(g,.02,.012,.14,hm(0x222222),.085,.03,-.07)}
+    if(it.k==='auditiva'){for(const s of[-1,1])cyl(g,.05,.05,.04,hm(0xd23b2a),s*.08,.06,0,16,'x');const b=new THREE.Mesh(new THREE.TorusGeometry(.085,.012,6,16,Math.PI),hm(0x222222));b.position.y=.06;g.add(b)}
+    if(it.k==='guantes'){for(const s of[-1,1]){box(g,.09,.03,.13,hm(0xe0b23a),s*.06,.02,0);for(let f=0;f<4;f++)box(g,.016,.02,.06,hm(0xe0b23a),s*.06-.03+f*.02,.02,-.09)}}
+    if(it.k==='botas'){for(const s of[-1,1]){box(g,.1,.07,.24,hm(0x3a2618),s*.065,.035,.02);box(g,.09,.18,.09,hm(0x3a2618),s*.065,.12,.08)}}
+    if(it.k==='overol'){box(g,.36,.08,.26,hm(0xd8661c),0,.04,0);box(g,.37,.012,.04,std(0xd8dcd4,{emissive:0x333333}),0,.085,-.04)}
+    if(it.k==='reloj'){cyl(g,.03,.03,.012,std(0xc9c9c9,{metalness:.9,roughness:.2}),0,.01,0,20);box(g,.03,.006,.16,hm(0x222222),0,.004,0)}
+    if(it.k==='anillo'){const t=new THREE.Mesh(new THREE.TorusGeometry(.022,.007,8,20),std(0xd4af37,{metalness:1,roughness:.2}));t.rotation.x=Math.PI/2;t.position.y=.01;g.add(t)}
+    if(it.k==='cadena'){for(let c=0;c<6;c++){const t=new THREE.Mesh(new THREE.TorusGeometry(.012,.004,6,10),std(0xd4af37,{metalness:1,roughness:.2}));t.position.set(-.05+c*.02,.006,Math.sin(c)*.02);t.rotation.x=c%2?Math.PI/2:0;g.add(t)}}
+    if(it.k==='gorra'){const d=new THREE.Mesh(new THREE.SphereGeometry(.09,16,8,0,Math.PI*2,0,Math.PI/2),hm(0x1f4f8a));g.add(d);box(g,.12,.01,.08,hm(0x1f4f8a),0,.005,.1)}
+    const l=label3D(it.n,.3);l.position.y=i%2?.42:.26;g.add(l);proxy(g,.3,V(0,.1,0));act(g,it.k,it.n)});
+  return items}
+async function modHSE(){
+  let errs=0;
+  // 1. bienvenida en la portería
+  insAt(V(1.4,0,49.6));station(V(0,0,55),0);
+  CAM.mode='cine';CAM.pos.set(-1,1.7,56);CAM.tgt.set(1,1.6,49);
+  const draw=(i,extra='')=>panel(head('Módulo 1 · Inducción HSE',HSE_STEPS[i],stepsHTML(HSE_STEPS,i)+extra));
+  draw(0);w(cineTo(V(-1.2,1.7,54),V(1.4,1.5,49.6),2));
+  await sayW('Hola, soy Ramiro Cárdenas, instructor de seguridad. Bienvenido a la locación de perforación.');
+  await sayW('Antes de pisar el taladro vamos a practicar cinco cosas que te mantienen vivo: el equipo de protección, la línea de fuego, el trabajo en alturas, el gas H2S y la autoridad para detener.');
+  // 2. EPP en primera persona
+  await w(fade(()=>{fpMode(V(14,1.68,41.3),0,-.62);insAt(V(17.2,0,40.6));station(V(14,0,41.3),0);$('#cams').hidden=true}));
+  const items=buildEPPItems();let got=0;const have=new Set();
+  const list=()=>`<ul class="steps">${EPP.filter(e=>e.ok).map(e=>`<li class="${have.has(e.k)?'done':''}">${e.n}</li>`).join('')}</ul>`;
+  draw(1,list());task('Toca los elementos de EPP que debes ponerte');
+  await sayW('Esta es la estación de EPP. Toca, uno por uno, los elementos que debes ponerte para trabajar en el piso de perforación. Ojo: en la mesa también hay cosas que no deben ir.');
+  while(got<6){const v=await w(waitInput());const it=EPP.find(e=>e.k===v);if(!it)continue;const o=items[v];
+    if(it.ok){got++;have.add(v);unact(o);const y0=o.position.y;tween(.6,p=>{o.position.y=y0+p*.5;o.scale.setScalar(1-p*.9)},()=>o.visible=false);draw(1,list());say(it.f)}
+    else{errs++;const x0=o.position.x;tween(.5,p=>o.position.x=x0+Math.sin(p*25)*.02*(1-p));draw(1,list()+`<div class="fb bad">${it.f}</div>`);await sayW(it.f)}}
+  await sayW('Muy bien, ya tienes el EPP completo. Revísalo antes de cada turno: un casco golpeado o unos guantes rotos ya no protegen.');
+  // 3. línea de fuego
+  task('');
+  RIG.crane.visible=true;const bundle=temp(new THREE.Group());world.add(bundle);for(let i=0;i<5;i++)cyl(bundle,.09,.09,9,MAT.pipe,(i-2)*.2,0,0,10,'z');const hp=V(8.2,6.5,19);
+  const setB=p=>{craneHook(p.clone().add(V(0,1.6,0)));bundle.position.copy(p);RIG.slings.forEach((s,i)=>{s.visible=i<2;if(i<2)orient(s,p.clone().add(V(0,1.6,0)),p.clone().add(V(0,.1,i?3.5:-3.5)),.02)})};setB(hp);
+  await w(fade(()=>{lookFrom([20,7,34],[7,1.5,19]);insAt(V(14,0,27));station(V(14,0,30),.5);$('#cams').hidden=false}));
+  const mA=temp(marker(V(8.2,.25,19),'A')),mB=temp(marker(V(5.9,.25,19),'B')),mC=temp(marker(V(13,.25,24.5),'C'));act(mA,'A','Posición A');act(mB,'B','Posición B');act(mC,'C','Posición C');
+  const cones=[];for(let i=0;i<7;i++){cones.push(temp(cyl(world,.02,.16,.45,std(0xe2531f),10.5+i*.7,.22,22.5,12)))}
+  draw(2,'<p>Toca la letra donde te ubicarías mientras la grúa mueve la carga.</p>');task('Toca A, B o C');
+  await sayW('La grúa va a llevar este paquete de tubería hasta el burro. Toca la letra donde te ubicarías mientras se hace la maniobra.');
+  for(;;){const v=await w(waitInput());if(v==='C'){unact(mA);unact(mB);unact(mC);break}
+    errs++;await sayW(v==='A'?'No. En la posición A quedas debajo de una carga suspendida: si una eslinga falla, la carga cae sobre ti.':'No. En la posición B quedas entre la carga y el burro: si la carga se balancea, te aplasta.')}
+  say('Correcto. Fuera de la trayectoria y detrás de la cinta. Si hay que guiar la carga, se hace con cabo, nunca con las manos.');
+  await w(tweenP(4,p=>setB(V(lerp(8.2,4.2,p),6.5-Math.sin(p*Math.PI)*.5-p*5.2,19))));
+  await sleep(1500);RIG.crane.visible=false;RIG.hook.visible=false;RIG.hookCab.visible=false;RIG.slings.forEach(s=>s.visible=false);
+  // 4. alturas
+  task('');const cl=RIG.climber;cl.g.visible=true;cl.anim='climb';const LX=y=>C(1,0,y).x+.62;
+  w(cineTo(V(13,F+6,4),V(2.6,F+5,-.35),2.4,false));draw(3);insAt(V(4.8,F,2.6));
+  tween(9,p=>{const y=.2+p*9;cl.g.position.set(LX(y),y,-.35)});
+  await sayW('Mira al encuellador subiendo. Va conectado al bloque retráctil, que frena una caída en centímetros. En Colombia, todo trabajo desde dos metros de altura exige curso vigente, arnés de cuerpo completo y permiso firmado.');
+  let v=await ask(head('Trabajo en alturas','¿En qué momento puede desconectarse el encuellador mientras está en altura?'),[{t:'Cuando llega al encuelladero, para moverse mejor',v:'a'},{t:'Nunca: debe estar conectado el 100 % del tiempo',v:'b'},{t:'Si tiene más de cinco años de experiencia',v:'c'}]);
+  if(v!=='b'){errs++;await sayW('No. En altura se trabaja conectado el cien por ciento del tiempo: al subir con el bloque retráctil, y arriba con la línea de vida.')}else await sayW('Correcto. Cien por ciento conectado: al subir con el bloque retráctil, y arriba con la línea de vida.');
+  cl.anim='idle';cl.g.visible=false;
+  // 5. H2S
+  draw(4);MODE.alarm=true;RIG.fx.gas=1;
+  w(cineTo(V(-40,26,-6),V(-8,0,-18),3,false));insAt(V(-10,0,-30));
+  const pe1=RIG.pe[0],pe2=RIG.pe[1];proxy(pe1,2.4,V(0,2,0));proxy(pe2,2.4,V(0,2,0));act(pe1,'pe1','Punto de encuentro 1');act(pe2,'pe2','Punto de encuentro 2');
+  task('Toca el punto de encuentro al que debes ir');
+  await sayW('¡Alarma de H2S! Suspende lo que estás haciendo. Mira la manga de viento: indica que el viento viene del norte. Toca el punto de encuentro al que debes ir.');
+  for(;;){const v2=await w(waitInput());if(v2==='pe1')break;if(v2==='pe2'){errs++;await sayW('No. El punto de encuentro dos queda a favor del viento: el gas va hacia allá. Busca el que queda contra el viento.')}}
+  unact(pe1);unact(pe2);
+  await sayW('Correcto: contra el viento. Y recuerda que el H2S es más pesado que el aire: nunca te refugies en el contrapozo ni en zonas bajas.');
+  MODE.alarm=false;RIG.fx.gas=0;task('');
+  // 6. autoridad para detener
+  draw(5);w(cineTo(V(6,F+3.2,8),V(0,F+1,0),2.4,false));insAt(V(2.6,F,3.4));
+  await sayW('Por último, la regla más importante: cualquier persona, sin importar su cargo, puede y debe detener un trabajo que vea inseguro, sin represalias. Y reporta los casi accidentes: son la información que evita el próximo accidente.');
+  // 7. evaluación
+  draw(6);await sayW('Ahora una evaluación corta.');
+  const q=await quizFlow('hse');const prac=Math.max(0,100-errs*10);
+  await result(Math.round(q*.6+prac*.4),`Práctica: ${prac} puntos (${errs} error${errs===1?'':'es'}). Evaluación: ${q} puntos.`)}
+
+/* ===================================================================== 2 · CONOCE EL TALADRO */
+async function modTaladro(){
+  const seen=new Set();let cur=null,tour=false,EXP=0;
+  const keys=Object.keys(PARTS);
+  const draw=()=>{const p=cur&&PARTS[cur];panel(head(`Recorrido · ${seen.size} de ${keys.length} vistos`,p?p.n:'Recorre el equipo',
+    `<p class="${p?'':'muted'}">${p?'Escucha al instructor. Puedes girar la cámara mientras habla.':'Toca un componente en la escena o elígelo en la lista. El instructor va hasta allá y te lo explica.'}</p>
+    <div class="chips">${keys.map(k=>`<button class="pchip ${k===cur?'on':seen.has(k)?'seen':''}" type="button" data-in="p:${k}">${PARTS[k].n}</button>`).join('')}</div>
+    <div class="row"><button class="btn" type="button" data-in="tour">Recorrido guiado completo</button><button class="btn ${seen.size>=6?'primary':''}" type="button" data-in="quiz">Iniciar evaluación</button></div>
+    ${seen.size<6?'<p class="muted" style="font-size:13px;margin-top:8px">Recomendado: conoce al menos 6 componentes antes de la evaluación.</p>':''}`))};
+  const explain=async k=>{const id=++EXP;cur=k;seen.add(k);draw();highlight(k);const p=PARTS[k];
+    const st=WP(p.st);if(RIG.ins.g.position.distanceTo(st)<14)insWalk(st);else insAt(st);RIG.ins.point=WP(p.tgt);
+    w(cineTo(WP(p.cam),WP(p.tgt),2.2,false));await sayW(p.narr);if(id===EXP){RIG.ins.point=null}};
+  MODE.onPart=k=>dispatch('p:'+k);
+  draw();lookFrom([44,30,52],[0,16,0]);insAt(V(4.6,F,4.6));
+  await sayW('Bienvenido al taladro. Toca cualquier componente, o elígelo en la lista, y te explico para qué sirve. Si prefieres, te doy el recorrido completo.');
+  for(;;){const v=await w(waitInput());
+    if(v.startsWith('p:')){explain(v.slice(2)).catch(e=>{if(e!==ABORT)console.error(e)});continue}
+    if(v==='tour'){for(const k of keys){await explain(k)}await sayW('Ese fue el recorrido completo. Puedes repasar cualquier componente o pasar a la evaluación.');continue}
+    if(v==='quiz')break}
+  MODE.onPart=null;highlight(null);RIG.ins.point=null;lookFrom([30,20,36],[0,12,0]);
+  const q=await quizFlow('taladro');await result(q,`Componentes explorados: ${seen.size} de ${keys.length}.`)}
+
+/* ===================================================================== 3 · ARMADO DEL EQUIPO */
+const RIG_CAM={cellar:[[8,5,10],[0,-1,0]],sub:[[26,13,26],[0,3,0]],floor:[[24,17,24],[0,F,0]],drawworks:[[16,16,8],[0,F,-4]],doghouse:[[8,14,16],[-7,F,-2]],mast:[[36,20,14],[0,F,-20]],crown:[[14,15,-28],[0,F,-40]],
+  block:[[16,14,-6],[0,F,-12]],raise:[[48,26,34],[0,16,-6]],bop:[[9,3.5,10],[0,1.5,0]],mud:[[2,15,-28],[15,2,-4]],rack:[[16,10,38],[0,1,18]]};
+function rigEmpty(){for(const k in RIG.parts)RIG.parts[k].visible=false;RIG.mast.rotation.x=-Math.PI/2;RIG.tools.visible=false;RIG.crew.visible=false;RIG.crane.visible=true;craneHook(V(14,14,-10));setBlock(10)}
+function slings(g,bb,p){const top=bb.max.y,c=[[bb.min.x,bb.min.z],[bb.max.x,bb.min.z],[bb.min.x,bb.max.z],[bb.max.x,bb.max.z]];RIG.slings.forEach((s,i)=>{s.visible=true;orient(s,p,V(c[i][0],top,c[i][1]),.025)})}
+async function liftPiece(key,mode){
+  const g=RIG.parts[key],h=RIG.home.get(g);g.visible=true;
+  if(g.parent!==h.parent)h.parent.add(g);g.position.copy(h.p);g.quaternion.copy(h.q);if(key==='mast')g.rotation.x=-Math.PI/2;g.updateMatrixWorld(true);
+  world.attach(g);const fin=g.position.clone();const bb0=new THREE.Box3().setFromObject(g);
+  const off={x:(bb0.min.x+bb0.max.x)/2-fin.x,z:(bb0.min.z+bb0.max.z)/2-fin.z,top:bb0.max.y-fin.y,bot:bb0.min.y-fin.y};
+  const start=V(26-off.x,-off.bot+.25,-30-off.z);const hy=Math.max(fin.y+off.top,start.y+off.top)+6;
+  const place=p=>{g.position.copy(p);const bb=new THREE.Box3(V(bb0.min.x-fin.x+p.x,bb0.min.y-fin.y+p.y,bb0.min.z-fin.z+p.z),V(bb0.max.x-fin.x+p.x,bb0.max.y-fin.y+p.y,bb0.max.z-fin.z+p.z));
+    const hk=V(p.x+off.x,bb.max.y+4,p.z+off.z);craneHook(hk);slings(g,bb,V(hk.x,hk.y,hk.z))};
+  place(start);await sleep(300);
+  const up=V(start.x,hy-off.top,start.z),over=V(fin.x,hy-off.top,fin.z);
+  await w(tweenP(2.2,p=>place(start.clone().lerp(up,p))));
+  await w(tweenP(3,p=>place(up.clone().lerp(over,p))));
+  if(mode==='auto'){await w(tweenP(2.2,p=>place(over.clone().lerp(fin,p))))}
+  else{panel(head('Grúa · '+PARTS_N(key),'Baja la pieza despacio',`<p>Mantén presionado el botón mientras la pieza baja. Suelta si necesitas detenerla.</p><button class="btn hold" type="button">Mantener: bajar</button>`));
+    setButtons([{t:'Mantener: BAJAR',v:'HOLD'}]);task('Mantén presionado BAJAR');
+    const cur=over.clone();await w(new Promise(res=>{MODE.tick=dt=>{if(HOLD.on){cur.y=Math.max(fin.y,cur.y-1.8*dt);place(cur);if(cur.y<=fin.y+1e-3){MODE.tick=null;res()}}}}));setButtons([]);task('')}
+  h.parent.attach(g);g.position.copy(h.p);g.quaternion.copy(h.q);if(key==='mast')g.rotation.x=-Math.PI/2;RIG.slings.forEach(s=>s.visible=false);craneHook(V(fin.x+off.x,fin.y+off.top+8,fin.z+off.z));
+}
+const PARTS_N=k=>(PARTS[k]||{n:k}).n;
+async function pinStep(points,title){
+  const pins=points.map((p,i)=>{const g=temp(new THREE.Group());g.position.copy(p).add(V(.45,0,0));world.add(g);cyl(g,.08,.08,.5,MAT.galv,0,0,0,12,'x');cyl(g,.13,.13,.06,MAT.red,.27,0,0,12,'x');proxy(g,.6);act(g,'pin'+i,'Pasador');hot(g);return g});
+  const left=new Set(pins.map((_,i)=>'pin'+i));
+  panel(head('Asegurar',title||'Instala los pasadores',`<p>Toca cada pasador que brilla para meterlo y asegurarlo con su chaveta. Faltan <b class="mono">${left.size}</b>.</p>`));task('Toca cada pasador');
+  while(left.size){const v=await w(waitInput());if(!left.has(v))continue;left.delete(v);const g=pins[+v.slice(3)];unact(g);const x0=g.position.x;tween(.4,p=>g.position.x=x0-p*.38);
+    panel(head('Asegurar',title||'Instala los pasadores',`<p>Toca cada pasador que brilla para meterlo y asegurarlo con su chaveta. Faltan <b class="mono">${left.size}</b>.</p>`))}
+  task('')}
+async function doStep(s,mode){
+  if(s.kind==='appear'){const g=RIG.parts.cellar;g.visible=true;g.scale.y=.01;await w(tweenP(1.6,p=>g.scale.y=Math.max(.01,p)));g.scale.y=1}
+  else if(s.kind==='crane'){const keys=s.k==='crown'?['crown','monkey']:[s.k];for(const k of keys)await liftPiece(k,mode);
+    if(mode==='hold'&&s.pins){const L=k=>RIG.parts[s.k].localToWorld(k);let pts;
+      if(s.k==='sub')pts=[V(-5.1,.7,-6.1),V(5.1,.7,-6.1),V(-5.1,.7,6.1),V(5.1,.7,6.1)];
+      else if(s.k==='floor')pts=[V(-5.4,F-.5,-5.8),V(5.4,F-.5,-5.8),V(-5.4,F-.5,5.8),V(5.4,F-.5,5.8)];
+      else if(s.k==='mast')pts=[L(C(-1,1,.3)),L(C(1,1,.3)),L(C(-1,0,.3)),L(C(1,0,.3))];
+      else pts=[L(V(-1.7,H,-1.7)),L(V(1.7,H,-1.7)),L(V(-1.7,H,1.3)),L(V(1.7,H,1.3))];
+      await pinStep(pts,'Pinea: '+s.t)}}
+  else if(s.kind==='string'){const g=RIG.parts.block;g.visible=true;await w(tweenP(2.5,p=>setBlock(lerp(3,10,p))));
+    if(mode==='hold'){const a=temp(new THREE.Group());world.add(a);a.position.set(-3.1,F+.3,-3.8);proxy(a,1);act(a,'anchor','Ancla de la línea muerta');hot(a);
+      panel(head('Guarnido','Asegura la línea muerta','<p>Toca el ancla de la línea muerta, en la subestructura, para fijar el extremo del cable.</p>'));task('Toca el ancla de la línea muerta');
+      w(cineTo(V(4,F+4,2),V(-3.1,F,-3.8),2,false));for(;;){if(await w(waitInput())==='anchor')break}unact(a);task('')}}
+  else if(s.kind==='raise'){
+    if(mode==='hold'){
+      const v=await ask(head('Antes de izar','¿Qué se verifica justo antes de izar el mástil?'),[{t:'Que el área esté despejada: nadie debajo del mástil ni en la línea del cable',v:'ok'},{t:'Que la cuadrilla esté cerca para ayudar a empujar',v:'x'},{t:'Nada: el perforador ya sabe cómo hacerlo',v:'y'}]);
+      if(v!=='ok'){MODE.st.errs++;await sayW('No. Antes de izar se despeja el área: nadie debajo del mástil ni en la línea del cable. Si algo falla, el mástil cae sobre esa zona.')}else await sayW('Correcto. Área despejada y todos fuera de la línea de fuego.');
+      panel(head('Izado','Iza el mástil con el malacate','<p>Mantén presionado el botón. El perforador iza despacio y sin detenerse; suelta solo si ves algo raro.</p><button class="btn hold" type="button">Mantener: izar</button>'));
+      setButtons([{t:'Mantener: IZAR',v:'HOLD'}]);task('Mantén presionado IZAR');
+      let a=-Math.PI/2;await w(new Promise(res=>{MODE.tick=dt=>{if(HOLD.on){a=Math.min(0,a+dt*.2);RIG.mast.rotation.x=a;RIG.drum.rotation.x+=dt*3;if(a>=0){MODE.tick=null;res()}}}}));
+      setButtons([]);task('');await pinStep([RIG.mast.localToWorld(C(-1,1,.4)),RIG.mast.localToWorld(C(1,1,.4))],'Asegura el mástil con los pasadores de seguridad')}
+    else await w(tweenP(7,p=>{RIG.mast.rotation.x=-Math.PI/2*(1-p);RIG.drum.rotation.x+=.05}));
+    RIG.mast.rotation.x=0;RIG.tools.visible=true;RIG.crew.visible=true}
+  else if(s.kind==='trolley'){const g=RIG.parts.bop;g.visible=true;const h=RIG.home.get(g);await w(tweenP(3,p=>g.position.set(h.p.x+(1-p)*9,h.p.y,h.p.z)));g.position.copy(h.p)}
+}
+async function modRigup(opt){
+  const how=opt&&opt.practice?'practice':await startChoice('Armado del equipo','Primero puedes ver cómo se arma un taladro paso a paso: qué pieza va, por qué va en ese orden y quién lo hace. Después diriges tú el armado.');
+  insAt(V(11,0,10));
+  if(how==='demo'){
+    rigEmpty();lookFrom([46,28,40],[2,4,-10]);
+    await sayW('Vas a ver el armado completo de un taladro. Fíjate en el orden: cada pieza necesita que otras ya estén en su sitio. Te explico también quién hace cada tarea.');
+    for(let i=0;i<RIGUP.length;i++){const s=RIGUP[i];const cm=RIG_CAM[s.k];
+      panel(head(`Demostración · paso ${i+1} de ${RIGUP.length}`,s.t,`<p>${s.why}</p><div class="fb info"><b>Quién lo hace:</b> ${s.who}</div>`+stepsHTML(RIGUP.map(x=>x.t),i)+`<button class="btn" type="button" data-in="skip">Saltar demostración</button>`));
+      w(cineTo(WP(cm[0]),WP(cm[1]),2.2,false));RIG.ins.point=WP(cm[1]);
+      const r=await w(Promise.race([Promise.all([say(s.narr),doStep(s,'auto')]),waitInput()]));if(r==='skip'){openModule(MODE.id,{practice:true});return}}
+    RIG.ins.point=null;
+    await sayW('Así se arma un taladro. Ahora es tu turno de dirigir el armado.')}
+  // práctica
+  newStage();rigEmpty();insAt(V(11,0,10));lookFrom([46,28,40],[2,4,-10]);
+  const st={errs:0};MODE.st=st;const done=[];
+  await sayW('Ahora diriges tú. En cada paso elige qué va, baja la pieza con la grúa y asegúrala con los pasadores. Si te equivocas de orden, te digo qué falta.');
+  while(done.length<RIGUP.length){
+    const left=RIGUP.filter(s=>!done.includes(s.k));
+    const hd=head(`Práctica · ${done.length} de ${RIGUP.length} instalados`,'¿Qué se instala ahora?',`<div class="meter"><span>Errores: <b class="mono">${st.errs}</b></span><span>Puntaje: <b class="mono">${Math.max(0,100-st.errs*6)}</b></span></div>`)+
+      (done.length?stepsHTML(done.map(k=>RIGUP.find(s=>s.k===k).t),done.length):'');
+    const v=await ask(hd,shuffle(left).map(s=>({t:s.t,v:s.k})));const s=RIGUP.find(x=>x.k===v);const miss=s.pre.filter(p=>!done.includes(p));
+    if(miss.length){st.errs++;panel(hd+`<div class="fb bad"><b>Todavía no.</b> Antes necesitas: ${miss.map(m=>RIGUP.find(x=>x.k===m).t).join(', ')}.</div>`);await sayW('Todavía no. Antes necesitas: '+miss.map(m=>RIGUP.find(x=>x.k===m).t).join(', ')+'. '+s.why);continue}
+    const cm=RIG_CAM[s.k];w(cineTo(WP(cm[0]),WP(cm[1]),2,false));say('Bien. '+s.why);
+    await doStep(s,'hold');done.push(s.k)}
+  await sayW('¡Excelente! El taladro quedó armado y listo para iniciar la perforación.');
+  await result(Math.max(0,100-st.errs*6),`${st.errs} error${st.errs===1?'':'es'} de secuencia o de seguridad.`)}
+function newStage(){clearTemp();RIG.home.forEach((h,o)=>{if(RIG.parts[o.name]===o){if(o.parent!==h.parent)h.parent.add(o);o.position.copy(h.p);o.quaternion.copy(h.q);o.scale.copy(h.s)}})}
+
+/* ===================================================================== 4 · ENCUELLE */
+const TRIP_ACTS=['up','stop','down','cuerda','elevador','peine','pestillo'];
+const EYE=()=>V(0,F+MONK+1.62,1.12);
+const standTop=()=>V(0,elevY()+.25,0);
+const SB=i=>V(SX(i),F+.2,1.62),SLOT=i=>V(SX(i),F+.2+LEN,SLOTZ);
+function placeStand(){const t=standTop();setStand(RIG.stand,V(0,t.y-LEN,0),t)}
+function tripSetup(){RIG.string.visible=true;RIG.stand.visible=true;setBlock(.9+EOFF);placeStand();RIG.racked.forEach(r=>world.remove(r));RIG.racked=[];RIG.latch.rotation.x=0;RIG.elevLatch.rotation.y=0;RIG.slips.visible=false;RIG.rope.visible=false;RIG.coil.visible=true}
+function tripActs(i){
+  const coil=RIG.coil;if(!coil.userData.px){proxy(coil,.38);coil.userData.px=1}
+  if(!RIG.elevLatch.userData.px){proxy(RIG.elevLatch,.42,V(0,0,.1));RIG.elevLatch.userData.px=1}
+  if(!RIG.latch.userData.px){proxy(RIG.latch,.32,V(0,0,.15));RIG.latch.userData.px=1}
+  for(const b of[RIG.btnUp,RIG.btnStop,RIG.btnDown])if(!b.userData.px){proxy(b,.16);b.userData.px=1}
+  const slot=temp(marker(SLOT(i).add(V(0,-.3,0)),'Peine'));
+  const snap=RIG.lanyard;
+  act(RIG.btnUp,'up','Señal: SUBIR');act(RIG.btnStop,'stop','Señal: PARAR');act(RIG.btnDown,'down','Señal: BAJAR');
+  act(coil,'cuerda','Cuerda de encuelle');act(RIG.elevLatch,'elevador','Manija del elevador');act(slot,'peine','Espacio libre en el peine');act(RIG.latch,'pestillo','Pestillo del peine');act(snap,'soltar','Mosquetón de tu línea de vida');
+  return {up:RIG.btnUp,stop:RIG.btnStop,down:RIG.btnDown,cuerda:coil,elevador:RIG.elevLatch,peine:slot,pestillo:RIG.latch}}
+async function floorAuto(i,narr){
+  RIG.hand1.anim='work';RIG.hand2.anim='work';
+  if(narr)say('Abajo, los cuñeros sientan las cuñas: la sarta queda sostenida en la mesa rotaria.');
+  RIG.slips.visible=true;await w(tweenP(1,p=>RIG.slips.position.y=F+.6-p*.48));if(narr)await sleep(2600);
+  if(narr)say('Con la llave de fuerza quiebran la conexión y la desenroscan.');
+  const tg=RIG.tongs[0],h=tg.home.clone(),to=V(.72,F+1.0,0);await w(tweenP(1.1,p=>tg.t.position.lerpVectors(h,to,p)));await w(tweenP(.9,p=>tg.t.rotation.y=p*.7));
+  const y0=RIG.blockY;await w(tweenP(.8,p=>{setBlock(y0+p*.35);placeStand()}));await w(tweenP(1,p=>{tg.t.position.lerpVectors(to,h,p);tg.t.rotation.y=.7*(1-p)}));
+  if(narr){await sleep(1200);say('Ahora empujan la base de la parada y la asientan en el setback, sobre la madera.')}
+  const b0=V(0,standTop().y-LEN,0),b1=SB(i),yA=RIG.blockY,yB=F+.2+LEN-.25-F+EOFF;
+  await w(tweenP(2.2,p=>{setBlock(lerp(yA,yB,p));const base=b0.clone().lerp(b1,p);setStand(RIG.stand,base,standTop())}));
+  RIG.hand1.anim='idle';RIG.hand2.anim='idle';if(narr)await sleep(1500)}
+async function standCycle(i,mode,st){
+  const A=MODE.acts,auto=mode==='auto',guided=mode==='guided';
+  const HT={up:'Pide al perforador que suba el bloque: toca SUBIR en el tablero de señales, a tu derecha.',
+    stop:'Toca PARAR cuando el elevador llegue a tu altura de trabajo, la franja verde del indicador.',
+    cuerda:'Enlaza la parada: toca la cuerda de encuelle, enrollada en la baranda de tu izquierda.',
+    elevador:'Ahora abre el elevador: toca su manija roja.',
+    peine:'Jala la parada hacia los peines: toca el espacio libre que brilla entre los peines, a tu izquierda.',
+    pestillo:'Asegura la parada: cierra el pestillo del peine.',
+    down:'Listo. Pide al perforador que baje el bloque: toca BAJAR.'};
+  const exp=async k=>{
+    if(auto)return;const obj=A[k];if(CAM.mode==='fp'&&guided)aim(obj);if(guided){hot(obj);await sayW(HT[k])}
+    drawTrip(i,st,k);
+    for(;;){const v=await w(waitInput());
+      if(v==='HINT'){st.hints++;hot(obj);if(CAM.mode==='fp')aim(obj);await sayW(HT[k]);continue}
+      if(v===k){hot(obj,false);return}
+      if(v==='soltar'){if(!guided)st.errs+=3;drawTrip(i,st,k);await sayW('¡Alto! Nunca te sueltes de la línea de vida en el encuelladero. Eso es un error grave: una caída desde aquí es mortal.');continue}
+      if(TRIP_ACTS.includes(v)){if(!guided)st.errs++;drawTrip(i,st,k);await sayW('Ese paso no va todavía. '+HT[k]);continue}}};
+  // A · subir y parar
+  for(;;){
+    await exp('up');if(auto)say('El encuellador pide por radio que suban el bloque.');
+    MODE.lifting=true;gauge(true,'Elevador','Piso 0 m',36,27.9,28.8);
+    const spd=(auto?2.4:2.2+i*.35);let autoStop=false;
+    const target=28.3;
+    MODE.tick=dt=>{if(!MODE.lifting)return;const nb=Math.min(H-2.2,RIG.blockY+spd*dt);setBlock(nb);placeStand();const hgt=elevY()-F;gaugeVal(hgt,hgt.toFixed(1).replace('.',',')+' m');
+      if(auto&&hgt>=target){MODE.lifting=false;dispatch('stop')}else if(nb>=H-2.2){MODE.lifting=false;autoStop=true;dispatch('AUTOSTOP')}};
+    if(!auto){drawTrip(i,st,'stop');task('Toca PARAR en la franja verde')}
+    let v;for(;;){v=await w(waitInput());if(v==='stop'||v==='AUTOSTOP')break;if(v==='HINT'){st.hints++;say(HT.stop)}}
+    MODE.lifting=false;MODE.tick=null;task('');const hgt=elevY()-F;
+    if(hgt>=27.9&&hgt<=28.8){if(!auto)say('Bien, la parada quedó a tu altura.');break}
+    if(!guided)st.errs++;
+    await sayW(autoStop?'Se activó la protección de corona: el bloque siguió subiendo hacia la corona. Debes dar la señal de parar a tiempo.':hgt<27.9?'Muy bajo: la parada no llega a tu altura y la conexión queda dentro de la mesa. Se baja y se repite.':'Muy alto: la parada te queda por encima y es difícil de controlar. Se baja y se repite.');
+    const y0=RIG.blockY;await w(tweenP(1.6,p=>{setBlock(lerp(y0,.9+EOFF,p));placeStand()}));gauge(false)}
+  gauge(false);
+  // B · el piso trabaja
+  if(!auto)drawTrip(i,st,'piso');await floorAuto(i,auto||guided);
+  // C · encuelle
+  await exp('cuerda');if(auto)await sayW('El encuellador enlaza la parada con la cuerda, para poder controlarla.');
+  const hand=RIG.coil.getWorldPosition(V(0,0,0));RIG.coil.visible=false;RIG.rope.visible=true;const rp=()=>{const t=standTop();orient(RIG.rope,hand,V(t.x,t.y-.45,t.z),.016)};rp();MODE.tick=()=>{if(RIG.rope.visible)rp()};
+  await exp('elevador');if(auto)await sayW('Con la parada enlazada y asentada abajo, abre el elevador.');
+  await w(tweenP(.6,p=>RIG.elevLatch.rotation.y=-1.3*p));
+  await exp('peine');if(auto)await sayW('Jala la parada hasta los peines.');
+  await w(tweenP(.5,p=>RIG.latch.rotation.x=-1.3*p));
+  const t0=standTop(),t1=SLOT(i),base=SB(i);MODE.tick=null;
+  await w(tweenP(1.8,p=>{const t=t0.clone().lerp(t1,p);setStand(RIG.stand,base,t);orient(RIG.rope,hand,V(t.x,t.y-.45,t.z),.016)}));
+  RIG.rope.visible=false;RIG.coil.visible=true;
+  await exp('pestillo');if(auto)await sayW('Y cierra el pestillo para que la parada no se salga.');
+  await w(tweenP(.5,p=>RIG.latch.rotation.x=-1.3*(1-p)));
+  const r=makeStand();world.add(r);setStand(r,base,t1);RIG.racked.push(r);RIG.stand.visible=false;
+  await exp('down');if(auto)await sayW('Por último, pide al perforador que baje el bloque vacío para la siguiente parada.');
+  RIG.elevLatch.rotation.y=0;const y0=RIG.blockY;await w(tweenP(2.4,p=>setBlock(lerp(y0,.9+EOFF,p))));
+  RIG.slips.visible=false;RIG.stand.visible=true;placeStand()}
+function drawTrip(i,st,k){if(!MODE.trip)return;const names={up:'Señal: subir',stop:'Señal: parar a tu altura',piso:'El piso: cuñas, llave y setback',cuerda:'Enlazar la parada',elevador:'Abrir el elevador',peine:'Llevar al peine',pestillo:'Cerrar el pestillo',down:'Señal: bajar el bloque'};
+  const order=['up','stop','piso','cuerda','elevador','peine','pestillo','down'];const ci=order.indexOf(k);
+  panel(head(MODE.trip==='guided'?'Parada guiada':`Parada ${i} de ${MODE.total}`,'Encuelle en el encuelladero',
+    `<div class="meter"><span>Errores: <b class="mono">${st.errs}</b> · Pistas: <b class="mono">${st.hints}</b></span><span>Puntaje: <b class="mono">${Math.max(0,100-st.errs*8-st.hints*3)}</b></span></div>
+    ${stepsHTML(order.map(o=>names[o]),ci)}<p class="muted" style="font-size:13px">Arrastra para mirar alrededor. Toca los objetos en la escena; el tablero de señales también está aquí abajo.</p>
+    <div class="row"><button class="btn sm" type="button" data-in="up">Subir</button><button class="btn sm" type="button" data-in="stop" style="border-color:var(--bad)">Parar</button><button class="btn sm" type="button" data-in="down">Bajar</button><button class="btn sm ghost" type="button" data-in="HINT">Pista</button></div>`));
+  setButtons([{t:'SUBIR',v:'up'},{t:'PARAR',v:'stop'},{t:'BAJAR',v:'down'},{t:'Pista',v:'HINT'}])}
+async function modEncuelle(opt){
+  const how=opt&&opt.practice?'practice':await startChoice('Encuelle','Primero el instructor te explica el trabajo del encuellador y te muestra una parada completa. Después subes tú al encuelladero, en primera persona.');
+  const st={errs:0,hints:0};
+  if(how==='demo'){
+    tripSetup();insAt(V(2.6,F,3.4));RIG.ins.point=V(-7,F+1.5,-2.2);
+    panel(head('Explicación','El viaje de tubería','<p>Sacar tubería del pozo se llama <b>viaje</b>. Se saca de a tres tubos (una <b>parada</b>, ~27 m) y se guarda parada en el setback y en los peines del encuelladero.</p>')+'<button class="btn" type="button" data-in="skip">Saltar explicación</button>');
+    const skip=waitInput();
+    const tour=(async()=>{
+      await w(cineTo(V(8,F+3.5,9),V(-2,F+1.5,-1),2.4,false));
+      await sayW('Vamos a sacar tubería del pozo. Esto se llama hacer un viaje. La tubería sale de a tres tubos unidos, unos veintisiete metros: eso es una parada.');
+      await sayW('En la cabina está el perforador: maneja el malacate y sube o baja el bloque. En el piso, los cuñeros sientan las cuñas y quiebran las conexiones con la llave.');
+      RIG.ins.point=V(0,F+MONK,1.5);w(cineTo(V(6,F+MONK+3,8),V(-.5,F+MONK+.6,1.3),3,false));
+      await sayW('Arriba, en el encuelladero, trabaja el encuellador. Cuando el bloque sube la parada, la detiene a su altura, la enlaza con una cuerda, abre el elevador y la guarda entre los peines.');
+      await sayW('Fíjate en tres cosas del encuelladero: el tablero de señales para hablar con el perforador, la cuerda de encuelle enrollada en la baranda, y la línea de vida, a la que siempre está conectado.');
+      RIG.ins.point=null;await sayW('Ahora mira una parada completa.')})();
+    const r=await w(Promise.race([tour.then(()=>'done'),skip]));
+    if(r==='skip'){openModule(MODE.id,{practice:true});return}
+    {WAITER=null;panel(head('Demostración','Una parada completa','<p>Mira cómo trabajan juntos el perforador, los cuñeros y el encuellador. Después lo haces tú.</p>'));MODE.acts=tripActs(0);MODE.trip=null;w(cineTo(V(5.5,F+MONK+2.2,6.5),V(-.4,F+MONK+.4,.8),2,false));await standCycle(0,'auto',st);clearActs();clearTemp()}
+    await sayW('Ahora es tu turno. Vas a subir al encuelladero.')}
+  // PRÁCTICA EN PRIMERA PERSONA
+  tripSetup();newStage();RIG.derrick.g.visible=false;$('#cams').hidden=true;
+  const LX=y=>C(1,0,y).x+.95;
+  await w(fade(()=>{fpMode(V(LX(0),F+1.62,-.35),Math.PI/2,.25);station(V(LX(0),F,-.35),Math.PI/2);insAt(V(LX(0)+.8,F,1.2))}));
+  const hook=temp(new THREE.Group());RIG.mast.add(hook);hook.position.set(LX(0)-.6,1.3,-.1);const hk=new THREE.Mesh(new THREE.TorusGeometry(.05,.015,6,12),MAT.galv);hook.add(hk);rod(hook,V(0,0,0),V(0,MONK+.2-1.3,-.4),.008,MAT.wire);proxy(hook,.35);act(hook,'clip','Gancho del bloque retráctil');hot(hook);
+  panel(head('Práctica · 1.ª persona','Sube al encuelladero','<p>Antes de poner un pie en la escalera, conecta tu arnés al gancho del bloque retráctil.</p>'));task('Conecta el arnés al bloque retráctil');
+  await sayW('Estás al pie de la escalera del mástil. Antes de subir, conecta tu arnés al gancho del bloque retráctil: es el que brilla frente a ti.');
+  for(;;){if(await w(waitInput())==='clip')break}unact(hook);hook.visible=false;task('');
+  say('Conectado. Ahora sube con tres puntos de apoyo: dos manos y un pie, o dos pies y una mano.');
+  await w(tweenP(7.5,p=>{const y=p*MONK;CAM.fp.pos.set(LX(y),F+1.62+y,-.35);CAM.fg.pitch=.25+Math.sin(p*40)*.02}));
+  await w(fade(()=>{fpMode(EYE(),0,-.2);station(V(0,F+MONK,1.12),0);insAt(V(.05,F+MONK,2.7))}));
+  const snap=temp(new THREE.Group());RIG.parts.monkey.add(snap);snap.position.set(.25,MONK+2.0,1.0);snap.add(new THREE.Mesh(new THREE.TorusGeometry(.05,.016,6,12),MAT.galv));proxy(snap,.4);act(snap,'linea','Línea de vida');hot(snap);aim(snap);
+  panel(head('Práctica · 1.ª persona','Conéctate a la línea de vida','<p>Ya estás en el encuelladero. Antes de soltar el bloque retráctil, pasa tu conexión a la línea de vida.</p>'));task('Conéctate a la línea de vida');
+  await sayW('Llegaste al encuelladero. Antes de soltar el bloque retráctil, conecta tu mosquetón a la línea de vida, encima de ti.');
+  for(;;){if(await w(waitInput())==='linea')break}unact(snap);snap.visible=false;task('');
+  await sayW('Perfecto, cien por ciento conectado. Mira hacia el centro del mástil: por ahí va a subir la parada.');fpLook(0,-.25);
+  // primera parada guiada, luego 4 por tu cuenta
+  const TOTAL=4;MODE.total=TOTAL;
+  MODE.trip='guided';MODE.acts=tripActs(0);await standCycle(0,'guided',st);clearActs();clearTemp();
+  await sayW('Muy bien. Ahora haz las siguientes paradas por tu cuenta. Si te pierdes, pide una pista, aunque cuesta puntos. La velocidad del bloque va a ir subiendo.');
+  for(let i=1;i<=TOTAL;i++){MODE.trip='practice';MODE.acts=tripActs(i);await standCycle(i,'practice',st);clearActs();clearTemp()}
+  MODE.trip=null;task('');
+  await sayW('Terminaste el viaje: todas las paradas quedaron aseguradas en los peines.');
+  await result(Math.max(0,100-st.errs*8-st.hints*3),`${TOTAL} paradas por tu cuenta. ${st.errs} error${st.errs===1?'':'es'} y ${st.hints} pista${st.hints===1?'':'s'}.`)}
+
+/* ===================================================================== 5 · CONTROL DE POZO */
+async function modControl(opt){
+  const how=opt&&opt.practice?'practice':await startChoice('Control de pozo','Primero ves en corte cómo entra una patada al pozo y cuáles son las señales. Después llevas la hoja de viaje y haces el simulacro de cierre en el piso.');
+  let errs=0;
+  if(how==='demo'){
+    panel(head('Animación','¿Qué es una patada?','<p>Observa el pozo en corte. La vista está ampliada para que se vea el interior.</p>'));
+    lookFrom([5,2.4,6],[0,1.4,0]);insAt(V(2.6,0,2.9));RIG.ins.point=V(0,1.5,0);
+    await sayW('Estas son las preventoras, sobre el cabezal. Pero para entender el control de pozo hay que ver lo que pasa abajo, en el pozo.');
+    MODE.under=true;ground.visible=false;RIG.parts.cellar.visible=false;RIG.well.visible=true;RIG.ins.point=null;
+    await w(cineTo(V(5.5,-24,8),V(0,-30,-1),3.5));
+    await sayW('Este es el pozo, visto en corte y ampliado. Adentro está la tubería, y todo el espacio está lleno de lodo. El peso de esa columna de lodo es la presión hidrostática: es la primera barrera que mantiene los fluidos de la formación en su sitio.');
+    w(cineTo(V(4.5,-55,7),V(0,-60,-1),3));gauge(true,'Tanques','Normal',10,0,1.5);
+    say('Si la presión de la formación supera la del lodo, entra gas al pozo. Eso es una patada. Mira las burbujas: suben y se expanden.');
+    await w(tweenP(9,p=>{RIG.kick=p*.9;gaugeVal(p*7,'+'+(p*7).toFixed(1).replace('.',',')+' bbl')}));
+    await w(cineTo(V(7,-8,12),V(0,-18,-1),3));
+    await sayW('Y como el gas ocupa espacio, empuja lodo hacia afuera: sube el volumen en los tanques y aumenta el flujo de retorno. Esas son las señales que tú puedes ver en superficie.');
+    RIG.well.visible=false;ground.visible=true;RIG.parts.cellar.visible=true;MODE.under=false;RIG.kick=0;gauge(false);
+    w(cineTo(V(9,6,4),V(5.5,1.5,-3),2.5,false));insAt(V(8.4,0,-1.2));RIG.ins.point=V(6.4,1.6,-3.2);
+    panel(head('Señales de alerta','Lo que ves en superficie','<ul class="steps"><li class="done">Aumento de volumen en tanques</li><li class="done">Aumento del flujo de retorno</li><li class="done">El pozo fluye con las bombas apagadas</li><li class="done">En un viaje: el pozo recibe menos lodo del que dice la hoja</li><li class="done">Cambio brusco en la rata de penetración</li></ul>'));
+    await sayW('Este es el tanque de viaje. Cuando sacas tubería, el nivel del pozo baja y hay que llenarlo con lodo de este tanque. Cada parada que sale debe tomar un volumen conocido: eso se anota en la hoja de viaje.');
+    await sayW('Si el pozo toma menos lodo del que debería, algo más está ocupando ese espacio. Puede ser gas entrando. Eso se detecta con la hoja de viaje, y es tu primera práctica.');
+    RIG.ins.point=null}
+  // PRÁCTICA 1 · hoja de viaje
+  tripSetup();lookFrom([13,F+1,9],[3.5,F-3,-1.5]);insAt(V(3,F,3.4));station(V(3,F,2.5),.6);
+  const exp=.9,meas=[.9,.88,.92,.87,.42,.31,.12];let tank=24,stopped=false,i=0;const rows=[];
+  const tbl=()=>`<table class="tbl"><tr><th>Parada</th><th>Calculado</th><th>Medido</th><th>Diferencia</th></tr>${rows.map((r,k)=>`<tr class="${k===rows.length-1?'cur':''}"><td>${r[0]}</td><td>${r[1].toFixed(2)}</td><td>${r[2].toFixed(2)}</td><td>${(r[2]-r[1]).toFixed(2)}</td></tr>`).join('')}</table>`;
+  await sayW('Vas a llevar la hoja de viaje. Por cada parada que sale, el pozo debe tomar cero coma nueve barriles del tanque de viaje. Tú comparas lo medido con lo calculado y decides si se sigue o se para.');
+  gauge(true,'Tanque de viaje','bbl',30,0,0);
+  for(i=0;i<meas.length;i++){
+    const y0=RIG.blockY;await w(tweenP(1.4,p=>{setBlock(lerp(y0,y0+6,p));placeStand()}));await w(tweenP(.8,p=>{setBlock(lerp(y0+6,y0,p));placeStand()}));
+    const m=meas[i];const t0=tank;tank-=m;await w(tweenP(.8,p=>{const v=lerp(t0,tank,p);gaugeVal(v,v.toFixed(1).replace('.',','));RIG.ttLevel.position.y=.3+v/30*2.6}));
+    rows.push([i+1,exp,m]);if(i>=5)RIG.fx.spray=.25;
+    const v=await ask(head('Práctica · Hoja de viaje',`Parada ${i+1}`,tbl()+`<p>El pozo tomó <b class="mono">${m.toFixed(2)} bbl</b>. Lo calculado es <b class="mono">${exp.toFixed(2)} bbl</b>.</p>`),[{t:'Llenado correcto: continuar el viaje',v:'go'},{t:'Diferencia: parar el viaje y hacer flow check',v:'stop'}]);
+    if(v==='stop'){if(m<exp-.15){stopped=true;await sayW(i===4?'Correcto. El pozo tomó menos de la mitad de lo calculado. Se detiene el viaje y se hace flow check.':'Bien, aunque ya debiste parar antes: la diferencia empezó en la parada cinco.');if(i>4)errs++;break}
+      errs++;await sayW('La diferencia es pequeña y está dentro de lo normal. Pararse por eso no es malo, pero aquí sí se puede continuar.');continue}
+    if(m<exp-.15){errs++;await sayW(i===4?'Cuidado: el pozo tomó menos de la mitad del lodo calculado. Eso es una alerta de influjo; aquí se debía parar.':'Sigues sacando con el pozo tomando muy poco lodo. Cada parada empeora el influjo.')}}
+  if(!stopped){errs++;await sayW('El pozo empezó a fluir. Hay que cerrar ya.')}
+  gauge(false);RIG.fx.spray=.6;MODE.alarm=true;
+  // PRÁCTICA 2 · simulacro de cierre (1.ª persona en el piso)
+  setBlock(18);RIG.stand.visible=false;RIG.slips.visible=true;RIG.slips.position.y=F+.12;$('#cams').hidden=true;
+  await w(fade(()=>{fpMode(V(-.4,F+1.62,2.6),.55,-.28);station(V(-.4,F,2.6),.55);insAt(V(1.2,F,3.9));RIG.hand2.g.position.set(1.3,F,-1.4)}));
+  const L=[['alarma',RIG.bopBtn2,'ALARMA'],['fosv',RIG.fosv,'Válvula FOSV'],['llave',RIG.fosvKey,'Llave de la FOSV'],['anular',RIG.bopBtn,'CERRAR ANULAR'],['presiones',RIG.gauges,'Manómetros']];
+  L.forEach(([k,o,n])=>{if(!o.userData.px){proxy(o,k==='presiones'?1:k==='fosv'?.9:.6,k==='presiones'?V(0,1.35,0):null);o.userData.px=1}act(o,k,n);const lb=temp(label3D(n,.55));o.add(lb);lb.position.set(0,k==='presiones'?1.95:k==='llave'?-.25:.55,0)});
+  const order=['alarma','fosv','llave','anular','presiones'];const NM={alarma:'Dar la alarma',fosv:'Instalar la FOSV abierta',llave:'Cerrar la FOSV con su llave',anular:'Cerrar la preventora anular',presiones:'Registrar presiones de cierre'};
+  const HN={alarma:'Primero da la alarma: botón amarillo del panel remoto, junto a la cabina.',fosv:'Instala la válvula de seguridad, la FOSV amarilla, abierta sobre la tubería.',llave:'Ahora cierra la FOSV con su llave roja.',anular:'Cierra el pozo: botón verde de cerrar anular en el panel remoto.',presiones:'Registra las presiones de cierre en los manómetros del múltiple.'};
+  let t0=performance.now(),step=0,hints=0;
+  const dr=(fb='')=>panel(head('Simulacro de cierre','¡El pozo está fluyendo!',`<div class="meter"><span>Errores: <b class="mono">${errs}</b></span><span>Tiempo: <b class="mono" id="drT">0 s</b></span></div>${stepsHTML(order.map(o=>NM[o]),step)}${fb}<button class="btn sm ghost" type="button" data-in="HINT">Pista</button>`));
+  dr();task('Actúa: toca los equipos en orden');MODE.tick=()=>{const e=$('#drT');if(e)e.textContent=Math.round((performance.now()-t0)/1000)+' s'};
+  await sayW('¡Simulacro! El pozo está fluyendo por la tubería. Estás en el piso. Actúa en orden: toca los equipos en la escena. El tiempo corre.');
+  t0=performance.now();
+  while(step<order.length){const k=order[step];const v=await w(waitInput());
+    if(v==='HINT'){hints++;const o=L.find(x=>x[0]===k)[1];hot(o);aim(o);say(HN[k]);continue}
+    if(v!==k){if(order.includes(v)){errs++;dr(`<div class="fb bad">${HN[k]}</div>`);say('No, ese paso no va ahora. '+HN[k])}continue}
+    const o=L.find(x=>x[0]===k)[1];hot(o,false);unact(o);step++;dr();
+    if(k==='alarma'){say('Alarma dada. El perforador detiene todo y la cuadrilla toma posiciones.')}
+    if(k==='fosv'){world.attach(RIG.fosv);const a=RIG.fosv.position.clone(),b=V(0,F+1.25,0);await w(tweenP(1.4,p=>{RIG.fosv.position.lerpVectors(a,b,p);RIG.fosv.position.y+=Math.sin(p*Math.PI)*.5}));say('FOSV instalada abierta: así se puede enroscar aunque haya flujo.')}
+    if(k==='llave'){world.attach(RIG.fosvKey);const a=RIG.fosvKey.position.clone(),b=V(.16,F+1.15,0);await w(tweenP(1,p=>RIG.fosvKey.position.lerpVectors(a,b,p)));await w(tweenP(.8,p=>RIG.fosvKey.rotation.y=p*Math.PI/2));RIG.fx.spray=.15;say('FOSV cerrada. Ya no sale por la tubería, pero sigue saliendo por el anular.')}
+    if(k==='anular'){await w(tweenP(1.2,p=>RIG.annular.material.color.setRGB(lerp(.43,.03,p),lerp(.02,.2,p),lerp(.012,.04,p))));RIG.fx.spray=0;MODE.alarm=false;say('Preventora anular cerrada: el pozo está cerrado.')}
+    if(k==='presiones'){await sayW('Registra: presión de cierre en la tubería, trescientos cincuenta psi; en el anular, quinientos veinte psi; ganancia en tanques, cinco barriles. Con esos datos se planea cómo matar el pozo.')}}
+  MODE.tick=null;task('');const secs=Math.round((performance.now()-t0)/1000);
+  await sayW(`Simulacro terminado en ${secs} segundos. Recuerda: alarma, válvula, cierre y registro.`);
+  const prac=Math.max(0,100-errs*8-hints*3-Math.max(0,secs-90)/3|0);
+  const q=await quizFlow('control');
+  await result(Math.round(prac*.5+q*.5),`Hoja de viaje y simulacro: ${prac} puntos (${errs} error${errs===1?'':'es'}, ${secs} s). Evaluación: ${q} puntos.`)}
+
+/* ===================================================================== 6 · CASOS */
+async function stageCase(c){
+  if(c.stage==='kick'){setNight(true);tripSetup();RIG.slips.visible=true;lookFrom([7,F+3,8],[0,F+.6,0]);insAt(V(3,F,3.6))}
+  if(c.stage==='ladder'){RIG.climber.g.visible=true;RIG.climber.anim='climb';lookFrom([14,F+2,6],[2.8,F+6,-.35]);insAt(V(4.8,F,3.2))}
+  if(c.stage==='gas'){lookFrom([4,6,-24],[13,2.4,-10]);insAt(V(8,0,-18));RIG.mudman.g.position.set(12.2,0,-13.5)}}
+function nodeFX(c,n){MODE.alarm=!!n.alarm;RIG.fx.spray=n.fx?.6:0;RIG.fx.gas=n.gas||0;
+  if(n.climb!=null){const cl=RIG.climber,LX=y=>C(1,0,y).x+.62,y0=cl.g.position.y||.2,y1=Math.min(n.climb,MONK-.2);cl.anim='climb';tween(Math.max(.5,Math.abs(y1-y0)/1.4),p=>{const y=lerp(y0,y1,p);cl.g.position.set(LX(y),y,-.35)},()=>{cl.anim='idle';if(y1>=MONK-1){cl.g.position.set(-.2,MONK+.03,1.6);cl.g.rotation.y=Math.PI}})}
+  if(n.down){RIG.mudman.anim='down'}}
+async function runCase(c){
+  resetScene();await stageCase(c);let first=0;
+  panel(head(`Caso · ${c.t}`,'Situación',`<p>${c.brief}</p><p class="muted">Tu rol: ${c.r}</p>`));await sayW(c.brief);
+  for(let i=0;i<c.nodes.length;i++){const n=c.nodes[i];nodeFX(c,n);let miss=false;
+    const hd=head(`${c.t} · decisión ${i+1} de ${c.nodes.length}`,n.x,`<div class="ind">${n.ind.map(([l,v,s])=>`<div class="${s}"><small>${l}</small><b>${v}</b></div>`).join('')}</div>`);
+    say(n.x+' ¿Qué haces?');const opts=shuffle(n.o.map((o,j)=>({t:o.t,v:String(j)})));
+    for(;;){const v=await ask(hd,opts);const o=n.o[+v];
+      if(o.ok){if(!miss)first++;panel(hd+`<div class="fb ok">${o.f}</div>`);await sayW(o.f);break}
+      miss=true;panel(hd+`<div class="fb bad">${o.f}</div>`);await sayW(o.f+' Intenta de nuevo.')}}
+  MODE.alarm=false;RIG.fx.spray=0;RIG.fx.gas=0;setNight(false);
+  return Math.round(first/c.nodes.length*100)}
+async function modCasos(){
+  for(;;){const p=prof();const m=p.mods.casos||(p.mods.casos={});m.cases=m.cases||{};
+    resetScene();lookFrom([40,24,46],[0,12,0]);
+    const v=await ask(head('Simulación','Casos simulados','<p class="muted">Situaciones reales recreadas en el equipo. Cada decisión correcta al primer intento suma. Completa los tres para tu nota del módulo.</p>'),
+      CASES.map(c=>({t:`<b>${c.t}</b><br><span class="muted" style="font-size:13px">Rol: ${c.r}${m.cases[c.id]!=null?` · Último puntaje: ${m.cases[c.id]}`:''}</span>`,v:c.id})));
+    const c=CASES.find(x=>x.id===v);await sayW('Caso: '+c.t+'.');const sc=await runCase(c);
+    m.cases[c.id]=Math.max(m.cases[c.id]||0,sc);save();
+    if(CASES.every(k=>m.cases[k.id]!=null)){const avg=Math.round(CASES.reduce((s,k)=>s+m.cases[k.id],0)/CASES.length);await result(avg,`Último caso: ${sc} puntos. Promedio de los tres casos: ${avg}.`);return}
+    await ask(head('Caso terminado',`${sc} puntos`,`<p>Decisiones correctas al primer intento en «${c.t}».</p>`),[{t:'Siguiente caso',v:'n'}])}}
+/* ===================================================================== APP: perfiles, panel principal, bucle */
+const store={get(){try{return JSON.parse(localStorage.getItem('escuelaPerforacion')||'null')}catch(e){return null}},set(v){try{localStorage.setItem('escuelaPerforacion',JSON.stringify(v))}catch(e){}}};
+let DB=store.get()||{profiles:[],cur:null};
+const prof=()=>DB.profiles.find(p=>p.id===DB.cur);
+const save=()=>store.set(DB);
+const xpOf=p=>Object.values(p.mods||{}).reduce((s,m)=>s+(m.best||0),0);
+const levelOf=x=>x<100?'Inducción':x<250?'Patio':x<400?'Piso':x<550?'Encuelladero':'Listo';
+function show(id){for(const s of document.querySelectorAll('.screen'))s.hidden=s.id!==id}
+$('#pRole').innerHTML=ROLES.map(r=>`<option>${r}</option>`).join('');
+function renderLogin(){const L=$('#profileList');
+  if(!DB.profiles.length)L.innerHTML=`<button class="prof" type="button" data-demo="1"><span class="avatar">D</span><span><b>Aprendiz de demostración</b><small>Perfil de ejemplo · Cuñero</small></span></button>`;
+  else L.innerHTML=DB.profiles.map(p=>`<button class="prof" type="button" data-id="${p.id}"><span class="avatar">${esc((p.name.trim()[0]||'?').toUpperCase())}</span><span><b>${esc(p.name)}</b><small>${esc(p.role)} · ${xpOf(p)} puntos</small></span></button>`).join('')}
+$('#profileList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.demo){createProfile('Aprendiz de demostración','Cuñero');return}DB.cur=b.dataset.id;save();openHub()});
+$('#newProfile').addEventListener('submit',e=>{e.preventDefault();const n=$('#pName').value.trim();if(!n){toast('Escribe el nombre del aprendiz.');return}createProfile(n,$('#pRole').value)});
+function createProfile(name,role){const p={id:'p'+Date.now().toString(36),name,role,mods:{}};DB.profiles.push(p);DB.cur=p.id;save();$('#pName').value='';openHub()}
+$('#switchUser').addEventListener('click',()=>{renderLogin();show('s-login')});
+function openHub(){const p=prof();if(!p){renderLogin();show('s-login');return}
+  const xp=xpOf(p),done=MODS.filter(m=>(p.mods[m.id]?.best||0)>=PASS).length;
+  $('#hubName').textContent=p.name;$('#hubRole').textContent=p.role;$('#hubXp').textContent=xp;$('#hubLevel').textContent=levelOf(xp);$('#hubDone').textContent=`${done}/${MODS.length}`;
+  $('#hubBar').style.width=(xp/(MODS.length*100)*100)+'%';
+  $('#modGrid').innerHTML=MODS.map(m=>{const b=p.mods[m.id]?.best;const chip=b==null?'<span class="chip">Pendiente</span>':b>=PASS?'<span class="chip ok">Aprobado</span>':'<span class="chip warn">Repetir</span>';
+    return `<button class="mod" type="button" data-mod="${m.id}"><span class="num">${m.n}</span><span class="tag">${m.tag}</span><span><h3>${m.t}</h3><p>${m.d}</p></span><span class="foot">${chip}<span class="mono muted">${b==null?`~${m.min} min`:`Mejor: ${b}`}</span></span></button>`}).join('');
+  show('s-hub');checkPlatforms()}
+$('#modGrid').addEventListener('click',e=>{const b=e.target.closest('[data-mod]');if(b)openModule(b.dataset.mod)});
+async function checkPlatforms(){const base=['Celular','Tablet','Computador'].map(t=>`<span class="chip ok">${t}</span>`);
+  let vr='<span class="chip">Meta Quest (VR): abrir desde su navegador</span>',ar='<span class="chip">Realidad aumentada: navegador compatible</span>';
+  try{if(navigator.xr){if(await navigator.xr.isSessionSupported('immersive-vr'))vr='<span class="chip ok">Meta Quest (VR)</span>';if(await navigator.xr.isSessionSupported('immersive-ar'))ar='<span class="chip ok">Realidad aumentada</span>'}}catch(e){}
+  $('#platforms').innerHTML=base.concat(vr,ar).join('')}
+function complete(id,score){const p=prof();const m=p.mods[id]||(p.mods[id]={});const prev=m.best;m.best=Math.max(prev||0,score);m.last=score;m.tries=(m.tries||0)+1;save();return{prev,best:m.best}}
+
+const SCRIPTS={hse:modHSE,taladro:modTaladro,rigup:modRigup,encuelle:modEncuelle,control:modControl,casos:modCasos};
+function openModule(id,opt){
+  const m=MODS.find(x=>x.id===id);show('s-mod');$('#modTitle').textContent=`${m.n} · ${m.t}`;
+  initEngine();resize();if(!RIG.home)saveHome();
+  newCtx();MODE={id};resetScene();panel('');
+  run(()=>SCRIPTS[id](opt));
+}
+function backToHub(){newCtx();MODE={};if(RIG.home)resetScene();openHub()}
+$('#backHub').addEventListener('click',backToHub);
+document.querySelectorAll('[data-cam]').forEach(b=>b.addEventListener('click',()=>{const c={general:[[44,30,52],[0,16,0]],piso:[[9,F+4,10],[0,F+.8,0]],encuelladero:[[6,F+MONK+3,8],[-.4,F+MONK+.5,1.3]],bop:[[4.6,1.8,5],[0,1.3,0]]}[b.dataset.cam];if(CAM.mode!=='fp')lookFrom(c[0],c[1])}));
+
+/* ---------- bucle principal ---------- */
+let lastT=performance.now(),T=0,talkWas=null,SPEED=1;
+const tv=V(0,0,0),hv=V(0,0,0);
+function tick(){
+  const now=performance.now(),dt=Math.min(.05,(now-lastT)/1000)*SPEED;lastT=now;T+=dt;
+  for(const tw of TW.slice()){tw.t+=dt;const p=Math.min(1,tw.t/tw.dur);tw.fn(ease(p));if(p>=1){const i=TW.indexOf(tw);if(i>=0)TW.splice(i,1);tw.done&&tw.done()}}
+  if(MODE.tick)MODE.tick(dt);
+  const I=RIG.ins;I.talk=NAR.speaking;if(talkWas!==I.talk){talkWas=I.talk;$('#talkDot').classList.toggle('on',I.talk)}
+  insFace(dt);animatePeople(dt,T);updateLines();updateFX(dt);updateBubbles(dt);
+  const k=.5+.5*Math.sin(T*5);
+  for(const o of INTER){const h=o.userData.hot,a=h?.35+.65*k:.06+.1*k;o.traverse(m=>{if(m.isMesh)emis(m,.94*a,.62*a,.1*a)})}
+  RIG.beacons.forEach((b,i)=>b.material.emissive.setHex(MODE.alarm&&((T*4|0)%2===i)?b.userData.c:0));
+  if(RIG.sock)RIG.sock.rotation.y=Math.sin(T*1.3)*.12;
+  if(!renderer.xr.isPresenting)camUpdate(dt);
+  camera.getWorldPosition(tv);sky.position.copy(tv);
+  renderer.shadowMap.needsUpdate=true;renderer.shadowMap.autoUpdate=false;
+  const cv=renderer.domElement,W=cv.clientWidth,Hh=cv.clientHeight;
+  if(renderer.xr.isPresenting){renderer.render(scene,camera);return}
+  renderer.setScissorTest(false);renderer.setViewport(0,0,W,Hh);renderer.render(scene,camera);
+  // retrato del instructor (imagen en imagen)
+  const pip=$('#pip');
+  if(!renderer.xr.isPresenting&&I.g.visible&&pip.offsetWidth){const r=pip.getBoundingClientRect(),c=cv.getBoundingClientRect();
+    const x=r.left-c.left+2,y=c.bottom-r.bottom+2,w=r.width-4,h=r.height-4;
+    I.head.getWorldPosition(hv);const yaw=I.g.rotation.y;const pc=RIG.pipCam;pc.position.set(hv.x+Math.sin(yaw)*.95,hv.y+.06,hv.z+Math.cos(yaw)*.95);pc.lookAt(hv.x,hv.y-.1,hv.z);pc.aspect=w/h;pc.updateProjectionMatrix();
+    renderer.setViewport(x,y,w,h);renderer.setScissor(x,y,w,h);renderer.setScissorTest(true);renderer.setClearColor(0x2a3640,1);renderer.clear();renderer.render(scene,pc);renderer.setScissorTest(false);renderer.setClearColor(0x000000,0)}
+}
+
+if(prof())openHub();else{renderLogin();show('s-login')}
+</script>
+</body>
+</html>
