@@ -135,6 +135,10 @@ input[type=text],select{background:var(--bg);border:1px solid var(--line);color:
 .cross::before,.cross::after{content:"";position:absolute;background:#fff;box-shadow:0 0 2px #000}
 .cross::before{left:6px;top:0;width:2px;height:14px}.cross::after{top:6px;left:0;height:2px;width:14px}
 .cross.lock{opacity:.95}
+.skipIntro{position:absolute;right:12px;top:10px;z-index:6;background:var(--glass);color:#ebe6da;border:1px solid var(--accent);border-radius:999px;padding:7px 14px;font-size:14px;font-weight:600;min-height:36px;cursor:pointer;box-shadow:0 2px 10px #0006}
+.skipIntro:hover{background:var(--accent);color:var(--accent-ink)}
+.introDist{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:var(--glass);color:#ebe6da;border-radius:999px;padding:6px 14px;font-size:14px;pointer-events:none;border:1px solid rgba(255,255,255,.15)}
+.introDist b{color:var(--accent);font-family:var(--mono,monospace)}
 .fade{position:absolute;inset:0;background:#0b0f12;opacity:0;pointer-events:none;transition:opacity .35s}
 .fade.on{opacity:1}
 .list{display:grid;gap:8px;margin:10px 0}
@@ -281,6 +285,8 @@ input[type=text],select{background:var(--bg);border:1px solid var(--line);color:
     <button class="useBtn" id="useBtn" type="button" hidden>Usar</button>
     <div class="prompt" id="prompt" hidden></div>
     <div class="cross" id="cross" hidden></div>
+    <button class="skipIntro" id="skipIntro" type="button" hidden>Saltar la introducción ⏭</button>
+    <div class="introDist" id="introDist" hidden></div>
     <div class="aimBox" id="aimBox" hidden><div class="aimName" id="aimName"></div><div class="aimVal" id="aimVal"></div><div class="aimBtns" id="aimBtns"></div></div>
     <div class="fade" id="fade"></div>
   </div>
@@ -596,9 +602,10 @@ const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const lerp=(a,b,t)=>a+(b-a)*t, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const ease=p=>p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
-const isMobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+const isHMD=/OculusBrowser|Quest|Pico|Wolvic/i.test(navigator.userAgent);
+const isMobile=isHMD||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 let renderer,scene,camera,dolly,world,sky,sun,raycaster;
-let QUALITY=isMobile?'medio':'alto';
+let QUALITY=isHMD?'bajo':isMobile?'medio':'alto';
 const TEX={},MAT={};
 const TW=[];
 function tween(dur,fn,done){const t={t:0,dur:Math.max(.001,dur),fn,done};TW.push(t);return t}
@@ -701,9 +708,11 @@ function initEngine(){
   world=new THREE.Group();scene.add(world);
   raycaster=new THREE.Raycaster();
   buildWorld();loadWorker();initHands();
+  try{batchStatic(world);freezeStatic(world)}catch(e){console.warn('No se pudieron unir las piezas estáticas',e)}
   setupInput(renderer.domElement);setupXR();
   new ResizeObserver(resize).observe(view);applyQuality();resize();
-  renderer.setAnimationLoop(tick);
+  // un error en un cuadro no debe detener el bucle (en las gafas se congelaría la imagen)
+  let errN=0;renderer.setAnimationLoop((t,f)=>{try{tick(t,f)}catch(e){if(errN++<5)console.error(e);if(renderer.xr.isPresenting)try{renderer.render(scene,camera)}catch(_){}}});
 }
 function applyQuality(){
   const q=QUALITY;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='alto'?2:q==='medio'?1.5:1));
@@ -783,40 +792,64 @@ function hover(e,force){const now=performance.now();if(!force&&now-hoverT<60)ret
   if(lbl){const r=$('#view').getBoundingClientRect();tip.textContent=lbl;tip.style.left=(e.clientX-r.left)+'px';tip.style.top=(e.clientY-r.top)+'px';tip.hidden=false}else tip.hidden=true}
 
 /* ---------- XR ---------- */
-const XRS={pos:V(4,0,10),yaw:0};let VRB=null,VRBTN=[],CURBTN=[];
+const XRS={pos:V(4,0,10),yaw:0};const XRQ={sh:false,turnT:0,scanT:0};
+function matsDirty(){scene.traverse(o=>{if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true)}})}let VRB=null,VRBTN=[],CURBTN=[];
 function station(pos,yaw){XRS.pos.copy(pos);XRS.yaw=yaw||0;if(renderer&&renderer.xr.isPresenting&&!MODE.ar){dolly.position.copy(XRS.pos);dolly.rotation.y=XRS.yaw}}
 function setupXR(){
-  const tmp=new THREE.Matrix4(),rc=new THREE.Raycaster();
+  const tmp=new THREE.Matrix4(),rc=new THREE.Raycaster();rc.camera=camera;
   for(let i=0;i<2;i++){const c=renderer.xr.getController(i);XRC[i]=c;c.addEventListener('connected',ev=>{c.userData.src=ev.data});c.addEventListener('disconnected',()=>{c.userData.src=null});
-    const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(0,0,0),V(0,0,-8)]),new THREE.LineBasicMaterial({color:0xf0a81c}));c.add(line);
+    const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(0,0,0),V(0,0,-8)]),new THREE.LineBasicMaterial({color:0xf0a81c}));c.add(line);c.userData.line=line;
     const g=renderer.xr.getControllerGrip(i);const gl=makeGlove(i===1?1:-1);gl.g.rotation.set(-.35,0,(i===1?-1:1)*1.3);gl.g.position.set(0,-.01,.05);g.add(gl.g);g.userData.glove=gl;dolly.add(g);
     c.addEventListener('connected',ev=>{const s=ev.data&&ev.data.handedness==='left'?-1:1;g.remove(gl.g);const n=makeGlove(s);n.g.rotation.set(-.35,0,-s*1.3);n.g.position.set(0,-.01,.05);g.add(n.g);g.userData.glove=n});
     const sel=down=>{tmp.identity().extractRotation(c.matrixWorld);rc.ray.origin.setFromMatrixPosition(c.matrixWorld);rc.ray.direction.set(0,0,-1).applyMatrix4(tmp);const gv=g.userData.glove;if(gv)gv.set(down?.9:.2,down?.2:0);
-      if(down){if(xrGrab(i,g,rc))return;const h=hitTest(rc);if(h&&h.act==='HOLD'){HOLD.on=true;return}onHit(h)}else{xrRelease(i);HOLD.on=false}};
+      if(down){if(VRB.menu&&VRB.mesh.visible&&rc.intersectObject(VRB.menu).length){clickSnd&&clickSnd();if(!$('#s-mod').hidden)backToHub();return}if(xrGrab(i,g,rc))return;const h=hitTest(rc);if(h&&h.act==='HOLD'){HOLD.on=true;return}onHit(h)}else{xrRelease(i);HOLD.on=false}};
     c.addEventListener('selectstart',()=>sel(true));c.addEventListener('selectend',()=>sel(false));c.addEventListener('squeezestart',()=>sel(true));c.addEventListener('squeezeend',()=>sel(false));dolly.add(c)}
   // tablero flotante con instructor + tarea
   const cv=document.createElement('canvas');cv.width=1024;cv.height=512;const tx=new THREE.CanvasTexture(cv);tx.encoding=THREE.sRGBEncoding;
   VRB={cv,tx,mesh:new THREE.Mesh(new THREE.PlaneGeometry(1.3,.65),new THREE.MeshBasicMaterial({map:tx,transparent:true}))};
   VRB.mesh.position.set(-.85,1.45,-1.35);VRB.mesh.rotation.y=.5;VRB.mesh.visible=false;dolly.add(VRB.mesh);
-  renderer.xr.addEventListener('sessionstart',()=>{VRB.mesh.visible=true;vrDraw();vrButtons(CURBTN)});
-  renderer.xr.addEventListener('sessionend',()=>{VRB.mesh.visible=false;vrButtons(CURBTN);MODE.ar=false;sky.visible=true;ground.visible=true;world.scale.setScalar(1);world.position.set(0,0,0);dolly.position.set(0,0,0);dolly.rotation.set(0,0,0);resize()});
+  const mt=textTex(['← Módulos'],{w:512,h:128,bg:'#232e37',fg:'#ebe6da',font:'600 52px Arial',border:'#62a8d4'});
+  VRB.menu=new THREE.Mesh(new THREE.PlaneGeometry(.4,.1),new THREE.MeshBasicMaterial({map:mt}));VRB.menu.position.set(-.45,-.4,0);VRB.mesh.add(VRB.menu);
+  renderer.xr.addEventListener('sessionstart',()=>{VRB.mesh.visible=true;
+    // en las gafas cada cuadro se dibuja dos veces (un ojo y otro): sin sombras dinámicas y con foveación
+    XRQ.sh=renderer.shadowMap.enabled;if(XRQ.sh){renderer.shadowMap.enabled=false;matsDirty()}try{if(renderer.xr.setFoveation)renderer.xr.setFoveation(1)}catch(e){}
+    $('#s-mod').classList.add('inxr');vrDraw();vrButtons(CURBTN);if(typeof vrHub==='function')vrHub()});
+  renderer.xr.addEventListener('sessionend',()=>{VRB.mesh.visible=false;$('#s-mod').classList.remove('inxr');if(XRQ.sh){renderer.shadowMap.enabled=true;matsDirty()}vrButtons(CURBTN);MODE.ar=false;sky.visible=true;ground.visible=true;world.scale.setScalar(1);world.position.set(0,0,0);dolly.position.set(0,0,0);dolly.rotation.set(0,0,0);resize()});
 }
+const XRT={m:new THREE.Matrix4(),rc:new THREE.Raycaster()};
+function xrTick(dt){if(!renderer.xr.isPresenting||MODE.ar)return;XRT.rc.camera=camera;const ses=renderer.xr.getSession();
+  // giro por pasos con la palanca derecha (en el recorrido lo hace walkTick)
+  if(!MODE.walk&&ses){XRQ.turnT-=dt;for(const src of ses.inputSources){const gp=src.gamepad;if(!gp||gp.axes.length<4||src.handedness!=='right')continue;if(Math.abs(gp.axes[2])>.7&&XRQ.turnT<=0){XRQ.turnT=.35;dolly.rotation.y-=Math.sign(gp.axes[2])*Math.PI/4}}}
+  XRQ.scanT-=dt;if(XRQ.scanT>0)return;XRQ.scanT=.08;
+  // resaltar lo que señala cada control y acortar el rayo hasta el objeto
+  const objs=INTER.filter(o=>o.userData.act!=='HOLD'&&visibleDeep(o));INTER.forEach(o=>{if(o.userData.xaim){o.userData.aim=false;o.userData.xaim=false}});
+  XRC.forEach(c=>{if(!c||!c.userData.src)return;XRT.m.identity().extractRotation(c.matrixWorld);XRT.rc.ray.origin.setFromMatrixPosition(c.matrixWorld);XRT.rc.ray.direction.set(0,0,-1).applyMatrix4(XRT.m);
+    const h=objs.length?XRT.rc.intersectObjects(objs,true)[0]:null;let o=h&&h.object;while(o&&!o.userData.act)o=o.parent;if(o){o.userData.aim=true;o.userData.xaim=true}
+    const L=c.userData.line;if(L)L.scale.z=h&&h.distance<8?Math.max(.02,h.distance/8):1})}
 function wrapText(g,text,x,y,maxW,lh){const words=String(text).split(' ');let line='';for(const w of words){const t=line?line+' '+w:w;if(g.measureText(t).width>maxW&&line){g.fillText(line,x,y);y+=lh;line=w}else line=t}if(line)g.fillText(line,x,y);return y}
 function vrDraw(){if(!VRB||!renderer.xr.isPresenting)return;const g=VRB.cv.getContext('2d');g.fillStyle='rgba(16,22,27,.92)';g.fillRect(0,0,1024,512);g.fillStyle='#f0a81c';g.fillRect(0,0,10,512);
   g.font='600 30px Arial';g.fillStyle='#f0a81c';g.fillText('ING. RAMIRO CÁRDENAS · INSTRUCTOR',36,52);g.font='34px Arial';g.fillStyle='#ebe6da';let y=wrapText(g,SUBTXT,36,104,950,42);
   g.font='600 30px Arial';g.fillStyle='#62a8d4';wrapText(g,TASK?'TAREA: '+TASK:'',36,Math.max(y+56,380),950,38);VRB.tx.needsUpdate=true}
+function panelBtns(){if(!P||!P.innerHTML)return[];const out=[],seen=new Set();P.querySelectorAll('[data-in],.btn.hold').forEach(b=>{if(b.disabled||b.hidden||b.closest('[hidden]'))return;const v=b.classList.contains('hold')?'HOLD':b.dataset.in;if(!v||seen.has(v))return;seen.add(v);out.push({t:b.textContent.replace(/\s+/g,' ').trim()||v,v})});return out.slice(0,12)}
 function vrButtons(list){VRBTN.forEach(b=>{unact(b);dolly.remove(b)});VRBTN=[];if(!renderer||!renderer.xr.isPresenting)return;
-  list.forEach((o,i)=>{const t=textTex([o.t.length>46?o.t.slice(0,44)+'…':o.t],{w:1024,h:128,bg:o.v==='HOLD'?'#a3301e':'#232e37',fg:'#ebe6da',font:'600 40px Arial',border:'#f0a81c'});
-    const m=new THREE.Mesh(new THREE.PlaneGeometry(.9,.112),new THREE.MeshStandardMaterial({map:t,emissive:0x000000,emissiveMap:t}));m.position.set(.75,1.62-i*.135,-1.2);m.rotation.y=-.5;dolly.add(m);act(m,o.v);VRBTN.push(m)})}
+  if(!list||!list.length)list=panelBtns();const two=list.length>6,per=two?Math.ceil(list.length/2):list.length;
+  list.forEach((o,i)=>{const col=two?(i<per?0:1):0,row=two?i%per:i;const t=textTex([o.t.length>46?o.t.slice(0,44)+'…':o.t],{w:1024,h:128,bg:o.v==='HOLD'?'#a3301e':'#232e37',fg:'#ebe6da',font:'600 40px Arial',border:'#f0a81c'});
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(.9,.112),new THREE.MeshStandardMaterial({map:t,emissive:0x000000,emissiveMap:t}));m.position.set(.62+col*.62,1.62-row*.135,-1.2+col*.55);m.rotation.y=-.5-col*.25;m.userData.vrb=true;dolly.add(m);act(m,o.v,o.t);VRBTN.push(m)})}
+let XR_BUSY=false;
 async function enterXR(mode){
-  initEngine();
   if(!navigator.xr){toast('Este navegador no tiene WebXR. Abre la versión publicada (GitHub Pages) en el navegador de las Meta Quest o en Chrome para Android.');return}
-  let ok=false;try{ok=await navigator.xr.isSessionSupported(mode)}catch(e){}
-  if(!ok){toast(mode==='immersive-vr'?'Modo VR no disponible aquí. En las Quest, abre la versión publicada en su navegador.':'Modo AR no disponible aquí. Prueba en Chrome para Android con ARCore o en las Quest 3.');return}
-  try{const s=await navigator.xr.requestSession(mode,{optionalFeatures:['local-floor']});renderer.xr.setReferenceSpaceType('local-floor');await renderer.xr.setSession(s);
+  if(XR_BUSY||(renderer&&renderer.xr.isPresenting))return;XR_BUSY=true;
+  // la sesión se pide de inmediato, mientras el clic todavía cuenta como gesto del usuario
+  let s=null;
+  try{s=await navigator.xr.requestSession(mode,{optionalFeatures:['local-floor','bounded-floor','hand-tracking']})}
+  catch(e){XR_BUSY=false;toast(mode==='immersive-vr'?'No se pudo abrir la realidad virtual ('+e.name+'). En las Meta Quest, abre la versión publicada en su navegador y vuelve a tocar VR.':'Realidad aumentada no disponible aquí ('+e.name+'). Prueba en Chrome para Android con ARCore o en las Quest 3.');return}
+  try{initEngine();
+    try{renderer.xr.setFramebufferScaleFactor(QUALITY==='alto'?1:QUALITY==='medio'?.9:.8)}catch(e){}
+    renderer.xr.setReferenceSpaceType('local-floor');await renderer.xr.setSession(s);
     if(mode==='immersive-ar'){MODE.ar=true;sky.visible=false;ground.visible=false;world.scale.setScalar(.018);world.position.set(0,0,-1.4)}
     else{dolly.position.copy(XRS.pos);dolly.rotation.y=XRS.yaw;if(MODE.walk)dolly.position.copy(WALK.pos)}
-  }catch(e){toast('No se pudo iniciar la sesión inmersiva: '+e.message)}}
+  }catch(e){try{s.end()}catch(_){}toast('No se pudo iniciar la sesión inmersiva: '+e.message)}
+  XR_BUSY=false}
 $('#btnVR').addEventListener('click',()=>enterXR('immersive-vr'));
 $('#btnAR').addEventListener('click',()=>enterXR('immersive-ar'));
 
@@ -860,7 +893,7 @@ P.addEventListener('pointerdown',e=>{const b=e.target.closest('.hold');if(b){HOL
 const holdOff=()=>{HOLD.on=false;P.querySelectorAll('.hold.on').forEach(b=>b.classList.remove('on'))};
 P.addEventListener('pointerup',holdOff);P.addEventListener('pointercancel',holdOff);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function panel(h,o){if(!h){P.innerHTML='';panelState(false);return}P.innerHTML='<button class="pclose" type="button" data-pc="1" aria-label="Plegar el panel">–</button>'+h;const need=(o&&o.open)||/class="opt|class="btn hold|data-open|class="score/.test(h);panelState(need||PANEL.pinned)}
+function panel(h,o){if(!h){P.innerHTML='';panelState(false);if(renderer&&renderer.xr.isPresenting&&!CURBTN.length)vrButtons([]);return}P.innerHTML='<button class="pclose" type="button" data-pc="1" aria-label="Plegar el panel">–</button>'+h;const need=(o&&o.open)||/class="opt|class="btn hold|data-open|class="score/.test(h);panelState(need||PANEL.pinned);if(renderer&&renderer.xr.isPresenting&&!CURBTN.length)vrButtons([])}
 function optsHTML(opts){return `<div class="list">${opts.map(o=>o.v==='HOLD'?`<button class="btn hold" type="button">${esc(o.t)}</button>`:`<button class="opt" type="button" data-in="${esc(o.v)}">${o.t}</button>`).join('')}</div>`}
 function setButtons(opts){CURBTN=opts;vrButtons(opts)}
 async function ask(head,opts,valid){
@@ -2038,7 +2071,8 @@ function aimTick(dt){
 })();
 /* VR: apuntar con el control y ajustar con la palanca */
 const XRC=[];const XJOY=new Map();
-function xrAimTick(dt){if(!renderer.xr.isPresenting)return;const tmp=new THREE.Matrix4(),rc=new THREE.Raycaster();
+const XAT={m:new THREE.Matrix4(),rc:new THREE.Raycaster()};
+function xrAimTick(dt){if(!renderer.xr.isPresenting)return;const tmp=XAT.m,rc=XAT.rc;rc.camera=camera;
   XRC.forEach((c,i)=>{const src=c.userData.src;if(!src||!src.gamepad||XDRAG[i])return;tmp.identity().extractRotation(c.matrixWorld);rc.ray.origin.setFromMatrixPosition(c.matrixWorld);rc.ray.direction.set(0,0,-1).applyMatrix4(tmp);
     const ch=ctlHit(rc);const ay=src.gamepad.axes.length>3?src.gamepad.axes[3]:0;const prev=XJOY.get(i);
     if(ch){ch.ctl.aim=true;if(Math.abs(ay)>.2&&ch.ctl.type!=='button'){if(ch.ctl.spring!=null){setCtl(ch.ctl,-ay*.8);XJOY.set(i,ch.ctl)}else setCtl(ch.ctl,ch.ctl.value-ay*(ch.ctl.max-ch.ctl.min)*.45*dt)}}
@@ -2104,7 +2138,7 @@ async function result(score,detail){
   const v=await ask(`<div class="eyebrow">Resultado</div><div class="score mono" style="color:var(${ok?'--ok':'--bad'})">${score}</div>
     <p><span class="chip ${ok?'ok':'bad'}">${ok?'Aprobado':'No aprobado'}</span> <span class="muted">Mínimo ${PASS} · Mejor: ${best}${prev!=null&&score>prev?' (nuevo récord)':''}</span></p>${detail?`<p class="muted">${detail}</p>`:''}`,
     [{t:'Repetir el módulo',v:'retry'}].concat(ROAMRET?[{t:'Volver al recorrido libre',v:'roam'}]:[],[{t:'Volver a los módulos',v:'hub'}]));
-  if(v==='retry')openModule(MODE.id,ROAMRET?ROAMRET.opt:undefined);else if(v==='roam'){const r=ROAMRET;ROAMRET=null;openModule('recorrido',{resume:r})}else backToHub()}
+  if(v==='retry')openModule(MODE.id,ROAMRET?ROAMRET.opt:{noIntro:true});else if(v==='roam'){const r=ROAMRET;ROAMRET=null;openModule('recorrido',{resume:r})}else backToHub()}
 async function startChoice(title,txt){return ask(head('Cómo empezar',title,`<p>${txt}</p>`),[{t:'Ver la explicación y la demostración (recomendado)',v:'demo'},{t:'Ir directo a la práctica',v:'practice'}])}
 
 /* ===================================================================== 1 · HSE */
@@ -2925,7 +2959,8 @@ function inHole(x,z){return Math.abs(x)<1.85&&Math.abs(z)<1.85}
 function surfaceAt(x,z,y){let best=null;for(const s of WS){if(x<s.x0||x>s.x1||z<s.z0||z>s.z1)continue;if(s.hole&&inHole(x,z))continue;if(s.lvl&&s.lvl!==WALK.lvl)continue;if(s.hole&&CUT.on&&x>-CUT.R-.3&&x<CUT.R+.3&&z>-.3&&z<CUT.R+.3)continue;const h=s.h(x,z);if(h<=y+STEP&&(best===null||h>best))best=h}return best}
 function blocked(x,z,y){for(const b of BLK){if(b.id==='mk1'){if(WALK.lvl!=='monkey')continue;if(x>-.45&&x<.45)continue}
   if(x>b.x0-RAD&&x<b.x1+RAD&&z>b.z0-RAD&&z<b.z1+RAD&&y+1.75>b.y0&&y+.35<b.y1)return true}return Math.abs(x)>130||Math.abs(z)>130}
-function tryMove(p,dx,dz){const nx=p.x+dx,nz=p.z+dz,s=surfaceAt(nx,nz,p.y);if(s===null||p.y-s>DROP||blocked(nx,nz,s))return false;p.x=nx;p.z=nz;p.y=s;return true}
+function tryMove(p,dx,dz){const nx=p.x+dx,nz=p.z+dz,s=surfaceAt(nx,nz,p.y);if(s===null||p.y-s>DROP||blocked(nx,nz,s))return false;
+  const I=RIG.ins&&RIG.ins.g;if(I&&I.visible&&Math.abs(I.position.y-p.y)<1.2){const d0=Math.hypot(p.x-I.position.x,p.z-I.position.z),d1=Math.hypot(nx-I.position.x,nz-I.position.z);if(d1<.7&&d1<d0)return false}p.x=nx;p.z=nz;p.y=s;return true}
 let ROAMRET=null;
 const WALK={pos:V(0,0,47),lvl:'ground',climb:null,srl:false,tied:true,bob:0,snapT:0,turnT:0};
 const yawTo=(a,b)=>Math.atan2(-(b.x-a.x),-(b.z-a.z));
@@ -3166,6 +3201,111 @@ async function wellRide(){
   MODE.tick=walkTick;stopSay();
   await w(fade(()=>{underground(false);MODE.noHand=false;if(CUT.on)teleport(V(1.5,0,CUT.R+1.7),V(0,-14,0));else teleport(V(.2,.24,3.4),V(0,1,0))}));
   exploreUI(true);MODE.walk=true}
+
+/* ---------- entrada caminando: el aprendiz llega hasta el instructor y recorre la zona con él ---------- */
+const INTRO={skip:false,ring:null};
+const INTRO_START={me:V(-12.6,0,13.8),ins:V(-9.4,0,11.5)};
+const INTRO_STOPS=[
+  {p:V(-5.4,0,10.9),pt:V(0,14,0),t:'Este es el taladro. Arriba está el mástil, de cuarenta y tres metros. Abajo, la subestructura sostiene el piso de perforación, a siete metros y medio del suelo. Por esa rampa y la puerta en V sube la tubería.'},
+  {p:V(9.6,0,9.6),pt:V(14.5,2.5,0),t:'A este lado están los tanques de lodo y, detrás, las bombas. El lodo enfría la broca, saca los recortes y mantiene controlada la presión del pozo.'},
+  {p:V(9.6,0,16.4),pt:V(5.2,1,19),t:'Y aquí están los burros de tubería, donde el obrero de patio mide, limpia y prepara cada tubo antes de subirlo. Nunca te pares debajo de una carga suspendida.'}];
+function introRing(on){if(on&&!INTRO.ring){const g=new THREE.Group();const r=new THREE.Mesh(new THREE.RingGeometry(.55,.7,40),new THREE.MeshBasicMaterial({color:0xf0a81c,transparent:true,opacity:.75,side:THREE.DoubleSide,depthWrite:false}));r.rotation.x=-Math.PI/2;g.add(r);
+    const ar=new THREE.Mesh(new THREE.ConeGeometry(.16,.32,4),new THREE.MeshBasicMaterial({color:0xf0a81c}));ar.rotation.x=Math.PI;ar.position.y=2.35;g.add(ar);g.userData.ar=ar;world.add(g);INTRO.ring=g}
+  if(INTRO.ring)INTRO.ring.visible=!!on}
+function introDist(){const I=RIG.ins.g.position;return Math.hypot(I.x-WALK.pos.x,I.z-WALK.pos.z)}
+// espera una promesa, pero sale de inmediato si el aprendiz salta la introducción
+function iw(p){return w(new Promise(res=>{let done=false;p.then(v=>{done=true;res(v)});const iv=setInterval(()=>{if(done){clearInterval(iv);return}if(INTRO.skip||CTX.dead){clearInterval(iv);res('skip')}},80)}))}
+async function introNear(maxD,hint){ // el instructor espera a que el aprendiz llegue
+  const t0=performance.now();let nag=0;task(hint);introRing(true);
+  for(;;){if(INTRO.skip)return;const d=introDist();$('#introDist').hidden=false;$('#introDist').innerHTML=`Instructor a <b>${d.toFixed(1)} m</b>`;
+    if(INTRO.ring){const I=RIG.ins.g.position;INTRO.ring.position.set(I.x,I.y+.03,I.z);INTRO.ring.userData.ar.position.y=2.3+Math.sin(performance.now()/260)*.08}
+    if(d<=maxD)break;
+    if((performance.now()-t0)/1000>14+nag*16){nag++;say(nag%2?'Ven, acércate. Camina hacia mí.':'Sígueme, aquí te espero.')}
+    await iw(wait(100))}
+  $('#introDist').hidden=true;introRing(false);task('')}
+async function introWalk(m){
+  INTRO.skip=false;const skipB=$('#skipIntro');skipB.hidden=false;
+  setButtons([{t:'Saltar la introducción ⏭',v:'skipintro'}]);
+  waitInput().then(v=>{if(v==='skipintro')INTRO.skip=true});
+  MODE.walk=true;MODE.intro=true;WALK.srl=false;WALK.tied=true;WALK.climb=null;$('#cams').hidden=true;
+  RIG.stand.visible=false;RIG.ins.g.visible=true;insAt(INTRO_START.ins.clone());
+  teleport(INTRO_START.me.clone(),V(INTRO_START.ins.x,1.6,INTRO_START.ins.z));
+  exploreUI(true);startAmbient();MODE.use=()=>{};MODE.onKey=null;MODE.tick=walkTick;
+  const touch=matchMedia('(pointer:coarse)').matches;
+  toast(renderer.xr.isPresenting?'Palanca izquierda para caminar y derecha para girar.':touch?'Usa el joystick para caminar y arrastra para mirar.':'Camina con W A S D (o las flechas) y arrastra para mirar.');
+  try{
+    say('¡Hola! Ven, acércate. Aquí te espero.');
+    await introNear(2.2,'Camina hasta el instructor');if(INTRO.skip)throw 0;
+    RIG.ins.face=null;
+    await iw(say(`Bienvenido. Soy el ingeniero Ramiro Cárdenas, tu instructor. Hoy vamos a trabajar en: ${m.t}. Antes, acompáñame a dar una vuelta corta por la locación.`));if(INTRO.skip)throw 0;
+    for(const st of INTRO_STOPS){
+      RIG.ins.point=null;await iw(insWalk(st.p.clone(),1.35));if(INTRO.skip)throw 0;
+      await introNear(4,'Sigue al instructor');if(INTRO.skip)throw 0;
+      RIG.ins.point=st.pt;await iw(say(st.t));if(INTRO.skip)throw 0}
+    RIG.ins.point=null;await iw(say('Listo, ya conoces la zona. Ahora sí, empecemos.'));
+  }catch(e){if(e===ABORT)throw e}
+  // limpieza: el módulo arranca desde su propio estado
+  TW.length=0;stopSay();introRing(false);skipB.hidden=true;$('#introDist').hidden=true;MODE.intro=false;WAITER=null;setButtons([]);task('');
+  $('#fade').classList.add('on');await w(wait(380));
+}
+$('#skipIntro').addEventListener('click',()=>{INTRO.skip=true;dispatch('skipintro')});
+/* ===================================================================== RENDIMIENTO: unir piezas estáticas (menos llamadas de dibujo) */
+const PERF={merged:0,before:0,after:0};
+function perfRefs(){
+  const S=new Set(),seen=new Set();
+  const walk=(v,d)=>{if(!v||typeof v!=='object'||seen.has(v)||d>5)return;seen.add(v);
+    if(v.isObject3D){S.add(v);return}if(v.isMaterial||v.isTexture||v.isBufferGeometry||v.nodeType)return;
+    if(Array.isArray(v)){v.forEach(x=>walk(x,d+1));return}if(v instanceof Map){v.forEach((x,k)=>{walk(k,d+1);walk(x,d+1)});return}if(v instanceof Set){v.forEach(x=>walk(x,d+1));return}
+    const pr=Object.getPrototypeOf(v);if(pr===Object.prototype||pr===null)for(const k in v)walk(v[k],d+1)};
+  [RIG,DET,CS,CUT,CTLS,FPH,INTER,TEMP,typeof WELL!=='undefined'?WELL:null,typeof ROAM!=='undefined'?ROAM:null].forEach(o=>walk(o,0));
+  return S}
+function geoSig(g){const a=Object.keys(g.attributes).sort();return a.map(k=>k+g.attributes[k].itemSize).join(',')+(g.index?'|i':'|n')+(g.morphAttributes&&Object.keys(g.morphAttributes).length?'|m':'')}
+function mergeGeos(list){ // list: [{geo, m:Matrix4}]
+  const keys=Object.keys(list[0].geo.attributes);let nv=0,ni=0;const idx=!!list[0].geo.index;
+  list.forEach(o=>{nv+=o.geo.attributes.position.count;if(idx)ni+=o.geo.index.count});
+  const out=new THREE.BufferGeometry();const arrs={};keys.forEach(k=>arrs[k]=new Float32Array(nv*list[0].geo.attributes[k].itemSize));
+  const ind=idx?(nv>65535?new Uint32Array(ni):new Uint16Array(ni)):null;
+  let vo=0,io=0;const nm=new THREE.Matrix3(),v=new THREE.Vector3();
+  for(const o of list){const g=o.geo,n=g.attributes.position.count;nm.getNormalMatrix(o.m);
+    for(const k of keys){const at=g.attributes[k],is=at.itemSize,dst=arrs[k];
+      for(let i=0;i<n;i++){
+        if(k==='position'){v.fromBufferAttribute(at,i).applyMatrix4(o.m);dst[(vo+i)*3]=v.x;dst[(vo+i)*3+1]=v.y;dst[(vo+i)*3+2]=v.z}
+        else if(k==='normal'){v.fromBufferAttribute(at,i).applyMatrix3(nm).normalize();dst[(vo+i)*3]=v.x;dst[(vo+i)*3+1]=v.y;dst[(vo+i)*3+2]=v.z}
+        else if(k==='tangent'){v.set(at.getX(i),at.getY(i),at.getZ(i)).transformDirection(o.m);dst[(vo+i)*4]=v.x;dst[(vo+i)*4+1]=v.y;dst[(vo+i)*4+2]=v.z;dst[(vo+i)*4+3]=at.getW(i)}
+        else for(let c=0;c<is;c++)dst[(vo+i)*is+c]=c===0?at.getX(i):c===1?at.getY(i):c===2?at.getZ(i):at.getW(i)}}
+    if(idx){const ia=g.index.array;for(let i=0;i<ia.length;i++)ind[io+i]=ia[i]+vo;io+=ia.length}
+    vo+=n}
+  keys.forEach(k=>out.setAttribute(k,new THREE.BufferAttribute(arrs[k],list[0].geo.attributes[k].itemSize)));if(ind)out.setIndex(new THREE.BufferAttribute(ind,1));
+  out.computeBoundingSphere();out.computeBoundingBox();return out}
+function batchStatic(root,dry){
+  const refs=perfRefs(),skip=new Set();
+  // personas animadas, instructor y piezas que se mueven: no se tocan
+  (RIG.people||[]).concat(RIG.ins?[RIG.ins]:[]).forEach(P=>P&&P.g&&P.g.traverse(o=>skip.add(o)));
+  root.traverse(o=>{if(o.isSkinnedMesh||o.isBone)skip.add(o)});
+  let before=0,merged=0;const groups=[];
+  root.traverse(g=>{if(!g.children.length||skip.has(g))return;
+    const bins=new Map();
+    for(const m of g.children){
+      if(!m.isMesh||m.isInstancedMesh||m.isSkinnedMesh||skip.has(m)||refs.has(m)||m.children.length||Array.isArray(m.material)||!m.geometry||!m.geometry.isBufferGeometry||!m.visible)continue;
+      if(Object.keys(m.userData).length||m.onBeforeRender!==THREE.Object3D.prototype.onBeforeRender)continue;
+      if(m.material.transparent&&m.material.opacity<.99)continue;
+      m.updateMatrix();if(m.matrix.determinant()<0)continue;
+      if(!m.geometry.attributes.position||m.geometry.attributes.position.count>20000)continue;
+      const k=m.material.uuid+'|'+m.castShadow+m.receiveShadow+'|'+m.renderOrder+'|'+m.frustumCulled+'|'+geoSig(m.geometry);
+      if(!bins.has(k))bins.set(k,[]);bins.get(k).push(m)}
+    bins.forEach(list=>{if(list.length>1)groups.push([g,list])})});
+  if(dry)return groups.flatMap(x=>x[1]);
+  for(const [g,list] of groups){
+    list.forEach(m=>m.updateMatrix());
+    const geo=mergeGeos(list.map(m=>({geo:m.geometry,m:m.matrix})));
+    const mm=new THREE.Mesh(geo,list[0].material);mm.castShadow=list[0].castShadow;mm.receiveShadow=list[0].receiveShadow;mm.renderOrder=list[0].renderOrder;mm.frustumCulled=list[0].frustumCulled;mm.name='lote';
+    const at=g.children.indexOf(list[0]);list.forEach(m=>g.remove(m));g.add(mm);
+    // mantener el orden aproximado de los hijos
+    g.children.splice(g.children.indexOf(mm),1);g.children.splice(Math.min(at,g.children.length),0,mm);
+    before+=list.length;merged++}
+  PERF.merged+=merged;PERF.before+=before;return {before,merged}}
+// partes que no cambian nunca: no recalcular su matriz cada cuadro
+function freezeStatic(root){let n=0;root.traverse(o=>{if(o.name==='lote'&&o.parent&&o.matrixAutoUpdate){o.updateMatrix();o.matrixAutoUpdate=false;n++}});return n}
 /* ===================================================================== APP: perfiles, panel principal, bucle */
 const store={get(){try{return JSON.parse(localStorage.getItem('escuelaPerforacion')||'null')}catch(e){return null}},set(v){try{localStorage.setItem('escuelaPerforacion',JSON.stringify(v))}catch(e){}}};
 let DB=store.get()||{profiles:[],cur:null};
@@ -3200,12 +3340,19 @@ function openHub(){const p=prof();if(!p){renderLogin();show('s-login');return}
     +sec('Tu cargo · '+ROLE_INFO[rk].n,cnt(R.own),ROLE_INFO[rk].d,R.own)
     +sec('Repaso del cargo anterior','',R.prev.length?'Prácticas del cargo que normalmente se ocupa antes del tuyo. Conviene dominarlas.':'',R.prev)
     +sec('Otros cargos','','Puedes practicarlos para conocer el trabajo de tus compañeros o prepararte para ascender.',others);
-  show('s-hub');checkPlatforms()}
+  show('s-hub');checkPlatforms();vrHub()}
+// en las gafas el panel principal no se ve: el menú de módulos aparece flotando en la escena
+function vrHub(){if(!renderer||!renderer.xr.isPresenting||MODE.ar||$('#s-hub').hidden)return;const p=prof();if(!p)return;
+  const rk=roleKey(p.role),route=COMMON.concat(ROUTE[rk].own);
+  if(!RIG.home)saveHome();newCtx();MODE={};resetScene();const at=V(9,0,15);station(at,yawTo(at,V(0,8,0)));
+  setSub('Hola, '+p.name.split(' ')[0]+'. Elige un módulo: apunta con el control y aprieta el gatillo.');
+  run(async()=>{const v=await ask(head('Realidad virtual','Elige un módulo'),route.map(id=>{const m=MODS.find(x=>x.id===id);const b=p.mods[id]?.best;return{t:`${m.n} · ${m.t}${b>=PASS?'  ✓':''}`,v:'m:'+id}}));openModule(v.slice(2))})}
 $('#modGrid').addEventListener('click',e=>{const b=e.target.closest('[data-mod]');if(b)openModule(b.dataset.mod)});
 async function checkPlatforms(){const base=['Celular','Tablet','Computador'].map(t=>`<span class="chip ok">${t}</span>`);
   let vr='<span class="chip">Meta Quest (VR): abrir desde su navegador</span>',ar='<span class="chip">Realidad aumentada: navegador compatible</span>';
   try{if(navigator.xr){if(await navigator.xr.isSessionSupported('immersive-vr'))vr='<span class="chip ok">Meta Quest (VR)</span>';if(await navigator.xr.isSessionSupported('immersive-ar'))ar='<span class="chip ok">Realidad aumentada</span>'}}catch(e){}
-  $('#platforms').innerHTML=base.concat(vr,ar).join('')}
+  $('#platforms').innerHTML=base.concat(vr,ar).join('')+(vr.includes('ok')?'<button class="btn primary sm" type="button" id="hubVR" style="margin-left:4px">Entrar en realidad virtual</button>':'');
+  const hb=$('#hubVR');if(hb)hb.onclick=()=>enterXR('immersive-vr')}
 function complete(id,score){const p=prof();const m=p.mods[id]||(p.mods[id]={});const prev=m.best;m.best=Math.max(prev||0,score);m.last=score;m.tries=(m.tries||0)+1;save();return{prev,best:m.best}}
 
 const SCRIPTS={recorrido:modRecorrido,hse:modHSE,taladro:modTaladro,rigup:modRigup,encuelle:modEncuelle,control:modControl,casos:modCasos,patio:modPatio,cunero:modCunero,lodo:modLodo,consola:modConsola,supervisor:modSupervisor};
@@ -3213,7 +3360,10 @@ function openModule(id,opt){
   const m=MODS.find(x=>x.id===id);show('s-mod');$('#modTitle').textContent=`${m.n} · ${m.t}`;
   initEngine();resize();if(!RIG.home)saveHome();
   newCtx();MODE={id};resetScene();panel('');
-  run(()=>SCRIPTS[id](opt));
+  const intro=id!=='recorrido'&&!ROAMRET&&!window.NOINTRO&&!(opt&&(opt.resume||opt.fromBoard||opt.noIntro));
+  run(async()=>{
+    if(intro){await introWalk(m);resetScene();panel('');MODE.id=id;setTimeout(()=>$('#fade').classList.remove('on'),260)}
+    return SCRIPTS[id](opt)});
 }
 function backToHub(){ROAMRET=null;newCtx();MODE={};if(RIG.home)resetScene();openHub()}
 $('#backHub').addEventListener('click',backToHub);
@@ -3228,14 +3378,14 @@ function tick(){
   if(MODE.tick)MODE.tick(dt);
   const I=RIG.ins;I.talk=NAR.speaking;if(talkWas!==I.talk){talkWas=I.talk;$('#talkDot').classList.toggle('on',I.talk)}
   if(I.talk)lastTalk=T;$('#sub').classList.toggle('quiet',!I.talk&&T-lastTalk>3.5);
-  insFace(dt);animatePeople(dt,T);updateCut(dt);detailTick(dt);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);
+  insFace(dt);animatePeople(dt,T);updateCut(dt);detailTick(dt);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);xrTick(dt);
   const k=.5+.5*Math.sin(T*5);
   for(const o of INTER){const h=o.userData.hot,a=h?.35+.65*k:o.userData.aim?.45:.06+.1*k;o.traverse(m=>{if(m.isMesh)emis(m,.94*a,.62*a,.1*a)})}
   RIG.beacons.forEach((b,i)=>b.material.emissive.setHex(MODE.alarm&&((T*4|0)%2===i)?b.userData.c:0));
   if(RIG.sock)RIG.sock.rotation.y=Math.sin(T*1.3)*.12;
   if(!renderer.xr.isPresenting)camUpdate(dt);
   camera.getWorldPosition(tv);sky.position.copy(tv);
-  renderer.shadowMap.needsUpdate=true;renderer.shadowMap.autoUpdate=false;
+  if(renderer.shadowMap.enabled){renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true}
   const cv=renderer.domElement,W=cv.clientWidth,Hh=cv.clientHeight;
   if(I.mouth){I.head.getWorldPosition(hv);const fw=V(Math.sin(I.g.rotation.y),0,Math.cos(I.g.rotation.y));I.mouth.visible=CAM.pos.clone().sub(hv).normalize().dot(fw)>.35&&CAM.pos.distanceTo(hv)<12}
   if(renderer.xr.isPresenting){renderer.render(scene,camera);return}

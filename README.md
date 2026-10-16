@@ -41,10 +41,12 @@ Con GitHub Pages activo (Settings → Pages → rama `main`, carpeta raíz):
 
 - https://migue05101.github.io/escuela-perforacion/
 
-En las Meta Quest: abrir ese enlace en el navegador de las gafas y tocar **VR** dentro de un módulo. Se señala con el control y se aprieta el gatillo.
+En las Meta Quest: abrir ese enlace en el navegador de las gafas y tocar **Entrar en realidad virtual** en el panel principal (o **VR** dentro de un módulo). Dentro de las gafas aparece un menú flotante de módulos; se señala con el control y se aprieta el gatillo. Palanca izquierda para caminar, derecha para girar por pasos; el botón **← Módulos** del tablero del instructor vuelve al menú. En VR se apagan las sombras dinámicas y la escena une sus piezas fijas para dibujar menos veces por cuadro.
+
+**Entrada a pie**: cada curso (excepto el recorrido libre) empieza con el aprendiz frente al taladro, a unos 4 m del instructor. Hay que caminar hasta él y seguirlo en un recorrido corto por la locación (taladro, tanques y bombas, burros de tubería). El botón **Saltar la introducción** pasa directo al curso.
 
 ## Código
 
-El sitio es un solo `index.html`. Las partes editables están en `src/` (`data.js` contenidos, `engine.js` motor, `models.js` modelos 3D, `modules.js` guiones de los módulos comunes, `roles.js` prácticas por cargo, `cabin.js` cabina y simulador de perforación, `hands.js` mano en primera persona, mandos y sonido, `explore.js` recorrido libre, `well.js` bajada por el pozo, `cut.js` corte del subsuelo bajo el taladro, `details.js` señalización y equipos de seguridad, `app.js` perfiles, panel y bucle). Después de editar, ejecutar `sh src/build.sh` para regenerar `index.html`.
+El sitio es un solo `index.html`. Las partes editables están en `src/` (`data.js` contenidos, `engine.js` motor, `models.js` modelos 3D, `modules.js` guiones de los módulos comunes, `roles.js` prácticas por cargo, `cabin.js` cabina y simulador de perforación, `hands.js` mano en primera persona, mandos y sonido, `explore.js` recorrido libre, `well.js` bajada por el pozo, `cut.js` corte del subsuelo bajo el taladro, `details.js` señalización y equipos de seguridad, `perf.js` unión de piezas estáticas para dibujar más rápido, `app.js` perfiles, panel y bucle). Después de editar, ejecutar `sh src/build.sh` para regenerar `index.html`.
 
 Los procedimientos son esquemas generales de referencia: antes de uso formal deben validarse con el instructor HSE, el procedimiento escrito de cada equipo y la certificación correspondiente (IWCF / IADC WellSharp, curso de alturas vigente).

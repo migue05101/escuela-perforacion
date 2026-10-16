@@ -127,6 +127,10 @@ input[type=text],select{background:var(--bg);border:1px solid var(--line);color:
 .cross::before,.cross::after{content:"";position:absolute;background:#fff;box-shadow:0 0 2px #000}
 .cross::before{left:6px;top:0;width:2px;height:14px}.cross::after{top:6px;left:0;height:2px;width:14px}
 .cross.lock{opacity:.95}
+.skipIntro{position:absolute;right:12px;top:10px;z-index:6;background:var(--glass);color:#ebe6da;border:1px solid var(--accent);border-radius:999px;padding:7px 14px;font-size:14px;font-weight:600;min-height:36px;cursor:pointer;box-shadow:0 2px 10px #0006}
+.skipIntro:hover{background:var(--accent);color:var(--accent-ink)}
+.introDist{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:var(--glass);color:#ebe6da;border-radius:999px;padding:6px 14px;font-size:14px;pointer-events:none;border:1px solid rgba(255,255,255,.15)}
+.introDist b{color:var(--accent);font-family:var(--mono,monospace)}
 .fade{position:absolute;inset:0;background:#0b0f12;opacity:0;pointer-events:none;transition:opacity .35s}
 .fade.on{opacity:1}
 .list{display:grid;gap:8px;margin:10px 0}
@@ -273,6 +277,8 @@ input[type=text],select{background:var(--bg);border:1px solid var(--line);color:
     <button class="useBtn" id="useBtn" type="button" hidden>Usar</button>
     <div class="prompt" id="prompt" hidden></div>
     <div class="cross" id="cross" hidden></div>
+    <button class="skipIntro" id="skipIntro" type="button" hidden>Saltar la introducción ⏭</button>
+    <div class="introDist" id="introDist" hidden></div>
     <div class="aimBox" id="aimBox" hidden><div class="aimName" id="aimName"></div><div class="aimVal" id="aimVal"></div><div class="aimBtns" id="aimBtns"></div></div>
     <div class="fade" id="fade"></div>
   </div>

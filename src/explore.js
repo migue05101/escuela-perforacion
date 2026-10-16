@@ -32,7 +32,8 @@ function inHole(x,z){return Math.abs(x)<1.85&&Math.abs(z)<1.85}
 function surfaceAt(x,z,y){let best=null;for(const s of WS){if(x<s.x0||x>s.x1||z<s.z0||z>s.z1)continue;if(s.hole&&inHole(x,z))continue;if(s.lvl&&s.lvl!==WALK.lvl)continue;if(s.hole&&CUT.on&&x>-CUT.R-.3&&x<CUT.R+.3&&z>-.3&&z<CUT.R+.3)continue;const h=s.h(x,z);if(h<=y+STEP&&(best===null||h>best))best=h}return best}
 function blocked(x,z,y){for(const b of BLK){if(b.id==='mk1'){if(WALK.lvl!=='monkey')continue;if(x>-.45&&x<.45)continue}
   if(x>b.x0-RAD&&x<b.x1+RAD&&z>b.z0-RAD&&z<b.z1+RAD&&y+1.75>b.y0&&y+.35<b.y1)return true}return Math.abs(x)>130||Math.abs(z)>130}
-function tryMove(p,dx,dz){const nx=p.x+dx,nz=p.z+dz,s=surfaceAt(nx,nz,p.y);if(s===null||p.y-s>DROP||blocked(nx,nz,s))return false;p.x=nx;p.z=nz;p.y=s;return true}
+function tryMove(p,dx,dz){const nx=p.x+dx,nz=p.z+dz,s=surfaceAt(nx,nz,p.y);if(s===null||p.y-s>DROP||blocked(nx,nz,s))return false;
+  const I=RIG.ins&&RIG.ins.g;if(I&&I.visible&&Math.abs(I.position.y-p.y)<1.2){const d0=Math.hypot(p.x-I.position.x,p.z-I.position.z),d1=Math.hypot(nx-I.position.x,nz-I.position.z);if(d1<.7&&d1<d0)return false}p.x=nx;p.z=nz;p.y=s;return true}
 let ROAMRET=null;
 const WALK={pos:V(0,0,47),lvl:'ground',climb:null,srl:false,tied:true,bob:0,snapT:0,turnT:0};
 const yawTo=(a,b)=>Math.atan2(-(b.x-a.x),-(b.z-a.z));
@@ -273,3 +274,51 @@ async function wellRide(){
   MODE.tick=walkTick;stopSay();
   await w(fade(()=>{underground(false);MODE.noHand=false;if(CUT.on)teleport(V(1.5,0,CUT.R+1.7),V(0,-14,0));else teleport(V(.2,.24,3.4),V(0,1,0))}));
   exploreUI(true);MODE.walk=true}
+
+/* ---------- entrada caminando: el aprendiz llega hasta el instructor y recorre la zona con él ---------- */
+const INTRO={skip:false,ring:null};
+const INTRO_START={me:V(-12.6,0,13.8),ins:V(-9.4,0,11.5)};
+const INTRO_STOPS=[
+  {p:V(-5.4,0,10.9),pt:V(0,14,0),t:'Este es el taladro. Arriba está el mástil, de cuarenta y tres metros. Abajo, la subestructura sostiene el piso de perforación, a siete metros y medio del suelo. Por esa rampa y la puerta en V sube la tubería.'},
+  {p:V(9.6,0,9.6),pt:V(14.5,2.5,0),t:'A este lado están los tanques de lodo y, detrás, las bombas. El lodo enfría la broca, saca los recortes y mantiene controlada la presión del pozo.'},
+  {p:V(9.6,0,16.4),pt:V(5.2,1,19),t:'Y aquí están los burros de tubería, donde el obrero de patio mide, limpia y prepara cada tubo antes de subirlo. Nunca te pares debajo de una carga suspendida.'}];
+function introRing(on){if(on&&!INTRO.ring){const g=new THREE.Group();const r=new THREE.Mesh(new THREE.RingGeometry(.55,.7,40),new THREE.MeshBasicMaterial({color:0xf0a81c,transparent:true,opacity:.75,side:THREE.DoubleSide,depthWrite:false}));r.rotation.x=-Math.PI/2;g.add(r);
+    const ar=new THREE.Mesh(new THREE.ConeGeometry(.16,.32,4),new THREE.MeshBasicMaterial({color:0xf0a81c}));ar.rotation.x=Math.PI;ar.position.y=2.35;g.add(ar);g.userData.ar=ar;world.add(g);INTRO.ring=g}
+  if(INTRO.ring)INTRO.ring.visible=!!on}
+function introDist(){const I=RIG.ins.g.position;return Math.hypot(I.x-WALK.pos.x,I.z-WALK.pos.z)}
+// espera una promesa, pero sale de inmediato si el aprendiz salta la introducción
+function iw(p){return w(new Promise(res=>{let done=false;p.then(v=>{done=true;res(v)});const iv=setInterval(()=>{if(done){clearInterval(iv);return}if(INTRO.skip||CTX.dead){clearInterval(iv);res('skip')}},80)}))}
+async function introNear(maxD,hint){ // el instructor espera a que el aprendiz llegue
+  const t0=performance.now();let nag=0;task(hint);introRing(true);
+  for(;;){if(INTRO.skip)return;const d=introDist();$('#introDist').hidden=false;$('#introDist').innerHTML=`Instructor a <b>${d.toFixed(1)} m</b>`;
+    if(INTRO.ring){const I=RIG.ins.g.position;INTRO.ring.position.set(I.x,I.y+.03,I.z);INTRO.ring.userData.ar.position.y=2.3+Math.sin(performance.now()/260)*.08}
+    if(d<=maxD)break;
+    if((performance.now()-t0)/1000>14+nag*16){nag++;say(nag%2?'Ven, acércate. Camina hacia mí.':'Sígueme, aquí te espero.')}
+    await iw(wait(100))}
+  $('#introDist').hidden=true;introRing(false);task('')}
+async function introWalk(m){
+  INTRO.skip=false;const skipB=$('#skipIntro');skipB.hidden=false;
+  setButtons([{t:'Saltar la introducción ⏭',v:'skipintro'}]);
+  waitInput().then(v=>{if(v==='skipintro')INTRO.skip=true});
+  MODE.walk=true;MODE.intro=true;WALK.srl=false;WALK.tied=true;WALK.climb=null;$('#cams').hidden=true;
+  RIG.stand.visible=false;RIG.ins.g.visible=true;insAt(INTRO_START.ins.clone());
+  teleport(INTRO_START.me.clone(),V(INTRO_START.ins.x,1.6,INTRO_START.ins.z));
+  exploreUI(true);startAmbient();MODE.use=()=>{};MODE.onKey=null;MODE.tick=walkTick;
+  const touch=matchMedia('(pointer:coarse)').matches;
+  toast(renderer.xr.isPresenting?'Palanca izquierda para caminar y derecha para girar.':touch?'Usa el joystick para caminar y arrastra para mirar.':'Camina con W A S D (o las flechas) y arrastra para mirar.');
+  try{
+    say('¡Hola! Ven, acércate. Aquí te espero.');
+    await introNear(2.2,'Camina hasta el instructor');if(INTRO.skip)throw 0;
+    RIG.ins.face=null;
+    await iw(say(`Bienvenido. Soy el ingeniero Ramiro Cárdenas, tu instructor. Hoy vamos a trabajar en: ${m.t}. Antes, acompáñame a dar una vuelta corta por la locación.`));if(INTRO.skip)throw 0;
+    for(const st of INTRO_STOPS){
+      RIG.ins.point=null;await iw(insWalk(st.p.clone(),1.35));if(INTRO.skip)throw 0;
+      await introNear(4,'Sigue al instructor');if(INTRO.skip)throw 0;
+      RIG.ins.point=st.pt;await iw(say(st.t));if(INTRO.skip)throw 0}
+    RIG.ins.point=null;await iw(say('Listo, ya conoces la zona. Ahora sí, empecemos.'));
+  }catch(e){if(e===ABORT)throw e}
+  // limpieza: el módulo arranca desde su propio estado
+  TW.length=0;stopSay();introRing(false);skipB.hidden=true;$('#introDist').hidden=true;MODE.intro=false;WAITER=null;setButtons([]);task('');
+  $('#fade').classList.add('on');await w(wait(380));
+}
+$('#skipIntro').addEventListener('click',()=>{INTRO.skip=true;dispatch('skipintro')});

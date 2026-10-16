@@ -32,12 +32,19 @@ function openHub(){const p=prof();if(!p){renderLogin();show('s-login');return}
     +sec('Tu cargo · '+ROLE_INFO[rk].n,cnt(R.own),ROLE_INFO[rk].d,R.own)
     +sec('Repaso del cargo anterior','',R.prev.length?'Prácticas del cargo que normalmente se ocupa antes del tuyo. Conviene dominarlas.':'',R.prev)
     +sec('Otros cargos','','Puedes practicarlos para conocer el trabajo de tus compañeros o prepararte para ascender.',others);
-  show('s-hub');checkPlatforms()}
+  show('s-hub');checkPlatforms();vrHub()}
+// en las gafas el panel principal no se ve: el menú de módulos aparece flotando en la escena
+function vrHub(){if(!renderer||!renderer.xr.isPresenting||MODE.ar||$('#s-hub').hidden)return;const p=prof();if(!p)return;
+  const rk=roleKey(p.role),route=COMMON.concat(ROUTE[rk].own);
+  if(!RIG.home)saveHome();newCtx();MODE={};resetScene();const at=V(9,0,15);station(at,yawTo(at,V(0,8,0)));
+  setSub('Hola, '+p.name.split(' ')[0]+'. Elige un módulo: apunta con el control y aprieta el gatillo.');
+  run(async()=>{const v=await ask(head('Realidad virtual','Elige un módulo'),route.map(id=>{const m=MODS.find(x=>x.id===id);const b=p.mods[id]?.best;return{t:`${m.n} · ${m.t}${b>=PASS?'  ✓':''}`,v:'m:'+id}}));openModule(v.slice(2))})}
 $('#modGrid').addEventListener('click',e=>{const b=e.target.closest('[data-mod]');if(b)openModule(b.dataset.mod)});
 async function checkPlatforms(){const base=['Celular','Tablet','Computador'].map(t=>`<span class="chip ok">${t}</span>`);
   let vr='<span class="chip">Meta Quest (VR): abrir desde su navegador</span>',ar='<span class="chip">Realidad aumentada: navegador compatible</span>';
   try{if(navigator.xr){if(await navigator.xr.isSessionSupported('immersive-vr'))vr='<span class="chip ok">Meta Quest (VR)</span>';if(await navigator.xr.isSessionSupported('immersive-ar'))ar='<span class="chip ok">Realidad aumentada</span>'}}catch(e){}
-  $('#platforms').innerHTML=base.concat(vr,ar).join('')}
+  $('#platforms').innerHTML=base.concat(vr,ar).join('')+(vr.includes('ok')?'<button class="btn primary sm" type="button" id="hubVR" style="margin-left:4px">Entrar en realidad virtual</button>':'');
+  const hb=$('#hubVR');if(hb)hb.onclick=()=>enterXR('immersive-vr')}
 function complete(id,score){const p=prof();const m=p.mods[id]||(p.mods[id]={});const prev=m.best;m.best=Math.max(prev||0,score);m.last=score;m.tries=(m.tries||0)+1;save();return{prev,best:m.best}}
 
 const SCRIPTS={recorrido:modRecorrido,hse:modHSE,taladro:modTaladro,rigup:modRigup,encuelle:modEncuelle,control:modControl,casos:modCasos,patio:modPatio,cunero:modCunero,lodo:modLodo,consola:modConsola,supervisor:modSupervisor};
@@ -45,7 +52,10 @@ function openModule(id,opt){
   const m=MODS.find(x=>x.id===id);show('s-mod');$('#modTitle').textContent=`${m.n} · ${m.t}`;
   initEngine();resize();if(!RIG.home)saveHome();
   newCtx();MODE={id};resetScene();panel('');
-  run(()=>SCRIPTS[id](opt));
+  const intro=id!=='recorrido'&&!ROAMRET&&!window.NOINTRO&&!(opt&&(opt.resume||opt.fromBoard||opt.noIntro));
+  run(async()=>{
+    if(intro){await introWalk(m);resetScene();panel('');MODE.id=id;setTimeout(()=>$('#fade').classList.remove('on'),260)}
+    return SCRIPTS[id](opt)});
 }
 function backToHub(){ROAMRET=null;newCtx();MODE={};if(RIG.home)resetScene();openHub()}
 $('#backHub').addEventListener('click',backToHub);
@@ -60,14 +70,14 @@ function tick(){
   if(MODE.tick)MODE.tick(dt);
   const I=RIG.ins;I.talk=NAR.speaking;if(talkWas!==I.talk){talkWas=I.talk;$('#talkDot').classList.toggle('on',I.talk)}
   if(I.talk)lastTalk=T;$('#sub').classList.toggle('quiet',!I.talk&&T-lastTalk>3.5);
-  insFace(dt);animatePeople(dt,T);updateCut(dt);detailTick(dt);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);
+  insFace(dt);animatePeople(dt,T);updateCut(dt);detailTick(dt);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);xrTick(dt);
   const k=.5+.5*Math.sin(T*5);
   for(const o of INTER){const h=o.userData.hot,a=h?.35+.65*k:o.userData.aim?.45:.06+.1*k;o.traverse(m=>{if(m.isMesh)emis(m,.94*a,.62*a,.1*a)})}
   RIG.beacons.forEach((b,i)=>b.material.emissive.setHex(MODE.alarm&&((T*4|0)%2===i)?b.userData.c:0));
   if(RIG.sock)RIG.sock.rotation.y=Math.sin(T*1.3)*.12;
   if(!renderer.xr.isPresenting)camUpdate(dt);
   camera.getWorldPosition(tv);sky.position.copy(tv);
-  renderer.shadowMap.needsUpdate=true;renderer.shadowMap.autoUpdate=false;
+  if(renderer.shadowMap.enabled){renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true}
   const cv=renderer.domElement,W=cv.clientWidth,Hh=cv.clientHeight;
   if(I.mouth){I.head.getWorldPosition(hv);const fw=V(Math.sin(I.g.rotation.y),0,Math.cos(I.g.rotation.y));I.mouth.visible=CAM.pos.clone().sub(hv).normalize().dot(fw)>.35&&CAM.pos.distanceTo(hv)<12}
   if(renderer.xr.isPresenting){renderer.render(scene,camera);return}

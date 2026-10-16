@@ -59,7 +59,7 @@ async function result(score,detail){
   const v=await ask(`<div class="eyebrow">Resultado</div><div class="score mono" style="color:var(${ok?'--ok':'--bad'})">${score}</div>
     <p><span class="chip ${ok?'ok':'bad'}">${ok?'Aprobado':'No aprobado'}</span> <span class="muted">Mínimo ${PASS} · Mejor: ${best}${prev!=null&&score>prev?' (nuevo récord)':''}</span></p>${detail?`<p class="muted">${detail}</p>`:''}`,
     [{t:'Repetir el módulo',v:'retry'}].concat(ROAMRET?[{t:'Volver al recorrido libre',v:'roam'}]:[],[{t:'Volver a los módulos',v:'hub'}]));
-  if(v==='retry')openModule(MODE.id,ROAMRET?ROAMRET.opt:undefined);else if(v==='roam'){const r=ROAMRET;ROAMRET=null;openModule('recorrido',{resume:r})}else backToHub()}
+  if(v==='retry')openModule(MODE.id,ROAMRET?ROAMRET.opt:{noIntro:true});else if(v==='roam'){const r=ROAMRET;ROAMRET=null;openModule('recorrido',{resume:r})}else backToHub()}
 async function startChoice(title,txt){return ask(head('Cómo empezar',title,`<p>${txt}</p>`),[{t:'Ver la explicación y la demostración (recomendado)',v:'demo'},{t:'Ir directo a la práctica',v:'practice'}])}
 
 /* ===================================================================== 1 · HSE */

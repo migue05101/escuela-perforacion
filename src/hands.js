@@ -180,7 +180,8 @@ function aimTick(dt){
 })();
 /* VR: apuntar con el control y ajustar con la palanca */
 const XRC=[];const XJOY=new Map();
-function xrAimTick(dt){if(!renderer.xr.isPresenting)return;const tmp=new THREE.Matrix4(),rc=new THREE.Raycaster();
+const XAT={m:new THREE.Matrix4(),rc:new THREE.Raycaster()};
+function xrAimTick(dt){if(!renderer.xr.isPresenting)return;const tmp=XAT.m,rc=XAT.rc;rc.camera=camera;
   XRC.forEach((c,i)=>{const src=c.userData.src;if(!src||!src.gamepad||XDRAG[i])return;tmp.identity().extractRotation(c.matrixWorld);rc.ray.origin.setFromMatrixPosition(c.matrixWorld);rc.ray.direction.set(0,0,-1).applyMatrix4(tmp);
     const ch=ctlHit(rc);const ay=src.gamepad.axes.length>3?src.gamepad.axes[3]:0;const prev=XJOY.get(i);
     if(ch){ch.ctl.aim=true;if(Math.abs(ay)>.2&&ch.ctl.type!=='button'){if(ch.ctl.spring!=null){setCtl(ch.ctl,-ay*.8);XJOY.set(i,ch.ctl)}else setCtl(ch.ctl,ch.ctl.value-ay*(ch.ctl.max-ch.ctl.min)*.45*dt)}}
