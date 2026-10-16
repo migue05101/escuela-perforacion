@@ -224,7 +224,7 @@ async function consoleFree(){
   MODE.walk=false;exploreUI(false);$('#cross').hidden=false;consoleReset({kickEnabled:false});
   await w(fade(()=>{consoleSeat(true);camera.fov=70;camera.updateProjectionMatrix()}));
   const prevTick=MODE.tick;MODE.tick=dt=>consoleSim(dt);
-  panel(head('Consola libre','Prueba los mandos',`<p>Practica sin evaluación. Arrastra las palancas, el joystick y las perillas con la mano. En el computador también puedes usar ↑ ↓ para el malacate.</p>
+  panel(head('Consola libre','Prueba los mandos',`<p>Practica sin evaluación. Apunta la <b>mira</b> a un mando: aparece un recuadro con su valor y los botones para manejarlo. También sirven la rueda del ratón, + y −, y ↑ ↓ para el malacate.</p>
     <ul class="steps"><li class="done"><b>Bombas 1 y 2</b>: perillas rojas, apoyabrazos derecho.</li><li class="done"><b>Rotaria</b>: palanca azul, apoyabrazos derecho.</li><li class="done"><b>Malacate</b>: joystick izquierdo. Adelante baja, atrás sube.</li><li class="done"><b>AUTO</b>: autoperforador con el peso de la perilla.</li></ul>
     <button class="btn primary" type="button" data-in="stand">Levantarse</button>`));setButtons([{t:'Levantarse',v:'stand'}]);
   say('Siéntete libre de probar la consola. Empieza por las bombas, luego la rotaria, y baja la sarta con el joystick hasta tocar fondo.');

@@ -49,6 +49,7 @@ function updateHands(dt){
     let tgt=null,curl=.22,point=0;
     if(MODE.handAt){tgt=camera.worldToLocal(MODE.handAt.clone());curl=.92}
     else if(DRAG){tgt=camera.worldToLocal(ctlGrip(DRAG.ctl));curl=.95}
+    else if(aimTarget()&&aimTarget().point.distanceTo(camera.getWorldPosition(_v1))<1.3){const t=aimTarget();tgt=camera.worldToLocal((t.ctl?ctlGrip(t.ctl):t.point.clone()));point=t.ctl&&t.ctl.type!=='button'?0:1;curl=t.ctl&&t.ctl.type!=='button'?.8:.55;if(t.ctl&&t.ctl.type!=='button'&&(AHOLD||XDRAG[0]||XDRAG[1]))curl=.95}
     else if(PTR.has||LOCK){
       const px=LOCK?null:PTR;let rc;
       if(LOCK){const r=renderer.domElement.getBoundingClientRect();rc=rayFromScreen(r.left+r.width/2,r.top+r.height/2)}else rc=rayFromScreen(px.x,px.y);
@@ -66,8 +67,8 @@ function updateHands(dt){
     orient(FPH.sl,wrist,ELBOW.clone().add(V(.08,-.16,.02)),.042,.042);
     const b0=wrist.clone().lerp(ELBOW,.3),b1=wrist.clone().lerp(ELBOW,.38);orient(FPH.band,b0,b1,.0445,.0445);
   }
-  updateXRDrag(dt);
-  const k=.5+.5*Math.sin(T*6);for(const c of CTLS){if(c.glow||c.glowWas){const a=c.glow?.15+.45*k:0;c.obj.traverse(m=>{if(m.isMesh&&m.material.emissive&&m.material!==c.capMat)m.material.emissive.setRGB(.94*a,.62*a,.1*a)});c.glowWas=c.glow}}
+  updateXRDrag(dt);aimTick(dt);xrAimTick(dt);
+  const k=.5+.5*Math.sin(T*6);for(const c of CTLS){if(c.glow||c.aim||c.glowWas){const a=c.glow?.15+.45*k:c.aim?.32:0;c.obj.traverse(m=>{if(m.isMesh&&m.material.emissive&&m.material!==c.capMat)m.material.emissive.setRGB(.94*a,.62*a,.1*a)});c.glowWas=c.glow||c.aim}}
 }
 
 /* ---------- mandos (palancas, joysticks, perillas, botones) ---------- */
@@ -127,3 +128,60 @@ function stopAmbient(){if(!SND.on)return;try{SND.master.gain.setTargetAtTime(0,S
 function clickSnd(){try{if(!SND.ctx)return;const a=SND.ctx,o=a.createOscillator(),g=a.createGain();o.frequency.value=1800;g.gain.value=.05;o.connect(g);g.connect(a.destination);o.start();g.gain.setTargetAtTime(0,a.currentTime,.015);o.stop(a.currentTime+.08)}catch(e){}}
 function beepSnd(on){try{if(!SND.ctx)return;const a=SND.ctx;if(on&&!SND.beep){const o=a.createOscillator(),g=a.createGain(),l=a.createOscillator(),lg=a.createGain();o.type='square';o.frequency.value=880;l.frequency.value=2.5;lg.gain.value=.035;l.connect(lg);lg.connect(g.gain);g.gain.value=.035;o.connect(g);g.connect(a.destination);o.start();l.start();SND.beep={o,l,g}}
   else if(!on&&SND.beep){SND.beep.g.gain.setTargetAtTime(0,a.currentTime,.05);SND.beep.o.stop(a.currentTime+.3);SND.beep.l.stop(a.currentTime+.3);SND.beep=null}}catch(e){}}
+
+/* ---------- MIRA: seleccionar con el centro de la pantalla ---------- */
+const AIM={t:null,lock:null,lockT:0,last:0,key:''};let AHOLD=null;
+const CTL_FMT={p1:v=>Math.round(v)+' epm',p2:v=>Math.round(v)+' epm',rpm:v=>Math.round(v)+' RPM',wobSet:v=>Math.round(v)+' klb',dw:v=>v>.05?'Bajando la sarta':v<-.05?'Subiendo la sarta':'Frenado (centro)'};
+const CTL_STEP={p1:5,p2:5,rpm:10,wobSet:1};
+function aimEnabled(){return !!renderer&&!renderer.xr.isPresenting&&CAM.mode==='fp'&&!MODE.noHand&&!$('#s-mod').hidden}
+function aimTarget(){return AIM.lock&&performance.now()<AIM.lockT?AIM.lock:AIM.t}
+function aimLock(c){AIM.lock={ctl:c,point:ctlGrip(c)};AIM.lockT=performance.now()+8000;AIM.key=''}
+function aimScan(){
+  const r=renderer.domElement.getBoundingClientRect();const rc=rayFromScreen(r.left+r.width/2,r.top+r.height/2);
+  const ch=ctlHit(rc);if(ch&&ch.point.distanceTo(rc.ray.origin)<3.5)return{ctl:ch.ctl,point:ch.point};
+  let best=null,bs=.075;for(const c of CTLS){if(c.off||!visibleDeep(c.obj))continue;const g=ctlGrip(c),v=g.clone().sub(rc.ray.origin),L=v.dot(rc.ray.direction);if(L<.15||L>3.5)continue;const sc=rc.ray.distanceToPoint(g)/L;if(sc<bs){bs=sc;best={ctl:c,point:g}}}if(best)return best;
+  const objs=INTER.filter(o=>visibleDeep(o)&&o.userData.act!=='HOLD'&&!VRBTN.includes(o));const h=rc.intersectObjects(objs,true)[0];
+  if(h&&h.distance<9){let o=h.object;while(o&&!o.userData.act)o=o.parent;if(o)return{obj:o,act:o.userData.act,point:h.point,label:o.userData.label}}
+  let bo=null,bq=.06;for(const o of objs){const g=o.getWorldPosition(V(0,0,0)),L=g.clone().sub(rc.ray.origin).dot(rc.ray.direction);if(L<.2||L>7)continue;const q=rc.ray.distanceToPoint(g)/L;if(q<bq){bq=q;bo={obj:o,act:o.userData.act,point:g,label:o.userData.label}}}
+  return bo}
+function aimActivate(){const t=aimTarget();if(!t)return false;
+  if(t.ctl){const c=t.ctl;if(c.type==='button'){pressBtn(c);return true}if(c.spring!=null){toast('Mantén presionadas las flechas ▲ ▼ del recuadro, o W y S.');return true}toast('Usa + y − del recuadro, la rueda del ratón o las teclas + y −.');return true}
+  if(FPH)FPH.poke=1;clickSnd();dispatch(t.act);return true}
+function aimAdjust(c,dir){if(!c||c.type==='button')return;if(c.spring!=null){setCtl(c,dir*.6);return}const st=CTL_STEP[c.id]||(c.max-c.min)/24;setCtl(c,Math.round((c.value+dir*st)/st)*st);clickSnd()}
+function aimHold(c,dir){AHOLD={c,dir,t:0,first:true};if(c.spring!=null)setCtl(c,dir*.6);else aimAdjust(c,dir)}
+function aimRelease(){if(!AHOLD)return;const c=AHOLD.c;AHOLD=null;if(c.spring!=null)releaseCtl(c)}
+function aimUI(t){
+  const box=$('#aimBox');if(!t){box.hidden=true;AIM.key='';return}
+  const key=t.ctl?('c:'+t.ctl.id):('a:'+t.act);
+  if(key!==AIM.key){AIM.key=key;const b=$('#aimBtns');
+    if(t.ctl&&t.ctl.type==='button')b.innerHTML='<button class="pr" type="button" data-ab="press">Presionar</button>';
+    else if(t.ctl&&t.ctl.spring!=null)b.innerHTML='<button type="button" data-ah="-1" title="Atrás: sube">▲ Subir</button><button type="button" data-ah="1" title="Adelante: baja">▼ Bajar</button>';
+    else if(t.ctl)b.innerHTML='<button type="button" data-ah="-1">−</button><button type="button" data-ah="1">+</button>';
+    else b.innerHTML='<button class="pr" type="button" data-ab="press">Usar</button>';
+    $('#aimName').textContent=t.ctl?(t.ctl.label||t.ctl.id):(t.label||'Elemento')}
+  const v=$('#aimVal');if(t.ctl&&t.ctl.type!=='button'){v.hidden=false;v.textContent=(CTL_FMT[t.ctl.id]||(x=>x.toFixed(1)))(t.ctl.value)}else v.hidden=true;
+  box.hidden=false}
+function aimTick(dt){
+  const cr=$('#cross');const on=aimEnabled();
+  if(!on){if(cr&&!MODE.walk)cr.hidden=true;$('#aimBox').hidden=true;AIM.t=null;return}
+  cr.hidden=false;
+  const now=performance.now();if(now-AIM.last>110){AIM.last=now;const n=aimScan();
+    if(n&&AIM.lock&&!(n.ctl&&n.ctl===AIM.lock.ctl))AIM.lock=null;AIM.t=n}
+  const t=aimTarget();cr.classList.toggle('on',!!t);aimUI(t);
+  CTLS.forEach(c=>c.aim=!!(t&&t.ctl===c));INTER.forEach(o=>o.userData.aim=!!(t&&t.obj===o));
+  if(AHOLD){AHOLD.t+=dt;if(AHOLD.c.spring==null&&AHOLD.t>.35){AHOLD.t=.27;aimAdjust(AHOLD.c,AHOLD.dir)}}
+  const tg=t&&t.ctl&&t.ctl.type!=='button'?t.ctl:null;
+  if(tg&&!AHOLD){if(KEYS.has('Equal')||KEYS.has('NumpadAdd')){AIM.kt=(AIM.kt||0)+dt;if(AIM.kt>.15){AIM.kt=0;aimAdjust(tg,1)}}else if(KEYS.has('Minus')||KEYS.has('NumpadSubtract')){AIM.kt=(AIM.kt||0)+dt;if(AIM.kt>.15){AIM.kt=0;aimAdjust(tg,-1)}}}}
+(function(){const b=$('#aimBtns');
+  b.addEventListener('pointerdown',e=>{const t=aimTarget();const h=e.target.closest('[data-ah]');if(h&&t&&t.ctl){e.preventDefault();aimHold(t.ctl,+h.dataset.ah);h.setPointerCapture&&h.setPointerCapture(e.pointerId)}});
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,aimRelease));
+  b.addEventListener('click',e=>{if(e.target.closest('[data-ab]'))aimActivate()});
+  addEventListener('keydown',e=>{if(e.code==='KeyE'&&aimEnabled()&&aimTarget()){const t=aimTarget();if(t.ctl||!(MODE.walk&&MODE.near)){e.stopImmediatePropagation();aimActivate()}}},true);
+})();
+/* VR: apuntar con el control y ajustar con la palanca */
+const XRC=[];const XJOY=new Map();
+function xrAimTick(dt){if(!renderer.xr.isPresenting)return;const tmp=new THREE.Matrix4(),rc=new THREE.Raycaster();
+  XRC.forEach((c,i)=>{const src=c.userData.src;if(!src||!src.gamepad||XDRAG[i])return;tmp.identity().extractRotation(c.matrixWorld);rc.ray.origin.setFromMatrixPosition(c.matrixWorld);rc.ray.direction.set(0,0,-1).applyMatrix4(tmp);
+    const ch=ctlHit(rc);const ay=src.gamepad.axes.length>3?src.gamepad.axes[3]:0;const prev=XJOY.get(i);
+    if(ch){ch.ctl.aim=true;if(Math.abs(ay)>.2&&ch.ctl.type!=='button'){if(ch.ctl.spring!=null){setCtl(ch.ctl,-ay*.8);XJOY.set(i,ch.ctl)}else setCtl(ch.ctl,ch.ctl.value-ay*(ch.ctl.max-ch.ctl.min)*.45*dt)}}
+    if(prev&&(Math.abs(ay)<=.2||!ch||ch.ctl!==prev)){releaseCtl(prev);XJOY.delete(i)}})}

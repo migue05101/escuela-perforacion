@@ -43,7 +43,7 @@ function buildCabin(g){
   CAB.ctl.auto=btn(ch,.36,.79,-.32,0x2e9b45,'auto','AUTO',()=>{CS.auto=!CS.auto;if(CS.auto)CS.manualT=0});
   const kn=(par,px,py,pz,col,id,lbl,min,max,val,ang=[2.3,-2.3])=>{const k=new THREE.Group();k.position.set(px,py,pz);par.add(k);cyl(k,.026,.026,.008,std(0x111316),0,0,0,18);
     const pv=new THREE.Group();pv.position.y=.012;k.add(pv);cyl(pv,.02,.022,.03,std(col,{roughness:.5}),0,.015,0,18);box(pv,.004,.004,.02,std(0xffffff,{emissive:0x999999}),0,.032,-.01);
-    const l=label3D(lbl,.065);l.position.y=.06;k.add(l);return addCtl({id,obj:pv,type:'knob',axis:'y',ang,min,max,value:val,drag:'x',sens:.7,grip:V(0,.02,0),hit:.06,hitPos:V(0,.015,0),label:lbl,dirW:V(0,0,1)})};
+    const l=label3D(lbl,.065);l.position.y=.06;k.add(l);return addCtl({id,obj:pv,type:'knob',axis:'y',ang,min,max,value:val,drag:'x',sens:.7,grip:V(0,.02,0),hit:.1,hitPos:V(0,.015,0),label:lbl,dirW:V(0,0,1)})};
   CAB.ctl.wobSet=kn(ch,.36,.79,-.44,0x333a40,'wobSet','Peso auto',0,40,18);
   // ---------- apoyabrazos derecho: top drive y bombas ----------
   const tdl=new THREE.Group();tdl.position.set(.5,.79,.38);ch.add(tdl);box(tdl,.05,.02,.12,std(0x111316),0,.01,0);

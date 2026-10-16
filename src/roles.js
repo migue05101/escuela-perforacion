@@ -267,8 +267,8 @@ async function modConsola(opt){
   const STEPS=['Encender las bombas (≈ 85 epm cada una)','Arrancar la rotaria a 100–120 RPM','Bajar la sarta y tocar fondo despacio','Poner 16–20 klb sobre la broca','Perforar vigilando tanques y flujo'];
   let cur=0;const T0={};
   const dr=(fb='')=>panel(head('Consola del perforador',cur<STEPS.length?STEPS[cur]:'¡Atención al pozo!',meterHTML(st)+stepsHTML(STEPS,cur)+fb+
-    `<p class="muted" style="font-size:13px">Agarra los mandos con la mano y arrástralos. En el computador también puedes usar ↑ ↓ para el malacate. Gira la vista arrastrando fuera de los mandos.</p><button class="btn sm ghost" type="button" data-in="HINT">Pista</button>`));
-  const HINT={0:'Gira las perillas rojas del apoyabrazos derecho: arrástralas hacia la derecha hasta unas ochenta y cinco emboladas cada una.',1:'Empuja la palanca azul hacia adelante hasta que la rotaria marque entre cien y ciento veinte.',2:'Empuja el joystick izquierdo hacia adelante para bajar. Cuando falte poco para el fondo, empuja suave.',3:'Sigue bajando poco a poco hasta que el peso sobre la broca marque entre dieciséis y veinte, o presiona AUTO.',4:'Vigila la pantalla central: volumen de tanques y flujo de retorno.'};
+    `<p class="muted" style="font-size:13px">Arrastra para mirar y apunta la <b>mira</b> (centro de la pantalla) al mando: aparece un recuadro con su valor y botones. También sirven la rueda del ratón, las teclas + y −, y ↑ ↓ para el malacate.</p><button class="btn sm ghost" type="button" data-in="HINT">Pista</button>`));
+  const HINT={0:'Apunta la mira a la perilla roja de la bomba uno, en el apoyabrazos derecho, y súbela con el botón más hasta unas ochenta y cinco emboladas. Luego haz lo mismo con la bomba dos.',1:'Apunta la mira a la palanca azul de la rotaria y súbela con el botón más hasta ciento diez.',2:'Apunta la mira al joystick del apoyabrazos izquierdo y mantén presionado Bajar. Cuando falte poco para el fondo, suéltalo y baja a toques.',3:'Sigue bajando poco a poco hasta que el peso sobre la broca marque entre dieciséis y veinte, o presiona AUTO.',4:'Vigila la pantalla central: volumen de tanques y flujo de retorno.'};
   const GL={0:['p1','p2'],1:['rpm'],2:['dw'],3:['dw','auto','wobSet'],4:[]};
   // eventos de la simulación → errores
   const evLoop=()=>{while(CS.ev.length){const e=CS.ev.shift();const P={impact:'Golpeaste el fondo con la broca. Al acercarte al fondo baja despacio.',crown:'Casi chocas el bloque contra la corona. Vigila la posición del bloque.',nopump:'Estás rotando sin bombas. Primero se circula, después se rota.',stall:'El top drive se frenó por exceso de peso. Mantén el peso en el rango del programa.',pumpclosed:'Estás bombeando contra el pozo cerrado: puedes fracturar la formación. Apaga las bombas.'}[e];
@@ -281,7 +281,7 @@ async function modConsola(opt){
   // pistas
   const hintLoop=async()=>{for(;;){const v=await w(waitInput());if(v==='HINT'){st.hints++;glowCtl(GL[Math.min(cur,4)]);await sayW(HINT[Math.min(cur,4)])}}};
   hintLoop().catch(()=>{});
-  await step(0,'Primero enciende las bombas de lodo. Gira las dos perillas rojas hasta unas ochenta y cinco emboladas por minuto.',stable(()=>CS.flowIn>=520&&CS.flowIn<=690,1.2));
+  await step(0,'Primero enciende las bombas de lodo. Apunta la mira a cada perilla roja y súbela hasta unas ochenta y cinco emboladas por minuto.',stable(()=>CS.flowIn>=520&&CS.flowIn<=690,1.2));
   say('Bien, circulación establecida: unos seiscientos galones por minuto.');
   await step(1,'Ahora arranca la rotaria: empuja la palanca azul hasta ciento diez RPM.',stable(()=>CS.rpm>=100&&CS.rpm<=120,1.2));
   await step(2,'Baja la sarta con el joystick del malacate hasta tocar fondo. Despacio al llegar.',()=>CS.wob>=2);

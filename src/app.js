@@ -52,16 +52,17 @@ $('#backHub').addEventListener('click',backToHub);
 document.querySelectorAll('[data-cam]').forEach(b=>b.addEventListener('click',()=>{const c={general:[[44,30,52],[0,16,0]],piso:[[9,F+4,10],[0,F+.8,0]],encuelladero:[[6,F+MONK+3,8],[-.4,F+MONK+.5,1.3]],bop:[[4.6,1.8,5],[0,1.3,0]]}[b.dataset.cam];if(CAM.mode!=='fp')lookFrom(c[0],c[1])}));
 
 /* ---------- bucle principal ---------- */
-let lastT=performance.now(),T=0,talkWas=null,SPEED=1;
+let lastT=performance.now(),T=0,talkWas=null,SPEED=1,lastTalk=0;
 const tv=V(0,0,0),hv=V(0,0,0);
 function tick(){
   const now=performance.now(),dt=Math.min(.05,(now-lastT)/1000)*SPEED;lastT=now;T+=dt;
   for(const tw of TW.slice()){tw.t+=dt;const p=Math.min(1,tw.t/tw.dur);tw.fn(ease(p));if(p>=1){const i=TW.indexOf(tw);if(i>=0)TW.splice(i,1);tw.done&&tw.done()}}
   if(MODE.tick)MODE.tick(dt);
   const I=RIG.ins;I.talk=NAR.speaking;if(talkWas!==I.talk){talkWas=I.talk;$('#talkDot').classList.toggle('on',I.talk)}
+  if(I.talk)lastTalk=T;$('#sub').classList.toggle('quiet',!I.talk&&T-lastTalk>3.5);
   insFace(dt);animatePeople(dt,T);updateCut(dt);detailTick(dt);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);
   const k=.5+.5*Math.sin(T*5);
-  for(const o of INTER){const h=o.userData.hot,a=h?.35+.65*k:.06+.1*k;o.traverse(m=>{if(m.isMesh)emis(m,.94*a,.62*a,.1*a)})}
+  for(const o of INTER){const h=o.userData.hot,a=h?.35+.65*k:o.userData.aim?.45:.06+.1*k;o.traverse(m=>{if(m.isMesh)emis(m,.94*a,.62*a,.1*a)})}
   RIG.beacons.forEach((b,i)=>b.material.emissive.setHex(MODE.alarm&&((T*4|0)%2===i)?b.userData.c:0));
   if(RIG.sock)RIG.sock.rotation.y=Math.sin(T*1.3)*.12;
   if(!renderer.xr.isPresenting)camUpdate(dt);
@@ -73,7 +74,7 @@ function tick(){
   renderer.setScissorTest(false);renderer.setViewport(0,0,W,Hh);renderer.render(scene,camera);
   // retrato del instructor (imagen en imagen)
   const pip=$('#pip');
-  if(!renderer.xr.isPresenting&&I.g.visible&&pip.offsetWidth){const r=pip.getBoundingClientRect(),c=cv.getBoundingClientRect();
+  if(!renderer.xr.isPresenting&&I.g.visible&&pip.offsetWidth&&!$('#sub').classList.contains('quiet')){const r=pip.getBoundingClientRect(),c=cv.getBoundingClientRect();
     const x=r.left-c.left+2,y=c.bottom-r.bottom+2,w=r.width-4,h=r.height-4;
     I.head.getWorldPosition(hv);const yaw=I.g.rotation.y;const pc=RIG.pipCam;const oy=I.pipOff||0;pc.position.set(hv.x+Math.sin(yaw)*.95,hv.y+oy+.06,hv.z+Math.cos(yaw)*.95);pc.lookAt(hv.x,hv.y+oy-.1,hv.z);pc.aspect=w/h;pc.updateProjectionMatrix();
     if(I.mouth)I.mouth.visible=true;const hs=FPH&&FPH.show;if(FPH){FPH.h.g.visible=FPH.sl.visible=FPH.band.visible=false}renderer.setViewport(x,y,w,h);renderer.setScissor(x,y,w,h);renderer.setScissorTest(true);renderer.setClearColor(0x2a3640,1);renderer.clear();renderer.render(scene,pc);renderer.setScissorTest(false);if(FPH&&hs){FPH.h.g.visible=FPH.sl.visible=FPH.band.visible=true}renderer.setClearColor(0x000000,0)}

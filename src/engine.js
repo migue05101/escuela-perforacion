@@ -175,13 +175,13 @@ function setupInput(el){
       if(CAM.mode==='orbit'){CAM.og.th-=dx*.006;CAM.og.ph=clamp(CAM.og.ph-dy*.006,.12,MODE.under?2.6:1.56)}
       else if(CAM.mode==='fp'){CAM.fg.yaw+=dx*.005;CAM.fg.pitch=clamp(CAM.fg.pitch+dy*.005,-1.35,1.2)}}
     else if(pts.size===2&&CAM.mode==='orbit'){const d=dist();if(pinch)CAM.og.r=clamp(CAM.og.r*pinch/d,3,220);pinch=d;if(down)down.moved=99}});
-  const up=e=>{if(DRAG&&DRAG.id===e.pointerId){ctlUp();pts.delete(e.pointerId);down=null;return}if(down&&down.ctl){pts.delete(e.pointerId);down=null;return}if(down&&down.moved<6&&pts.size===1)pickAt(e.clientX,e.clientY);pts.delete(e.pointerId);if(!pts.size)down=null;pinch=0;if(e.pointerType!=='mouse')setTimeout(()=>{if(!pts.size&&!DRAG){PTR.hp=null}},900)};
+  const up=e=>{if(DRAG&&DRAG.id===e.pointerId){const c=DRAG.ctl,mv=Math.hypot(e.clientX-DRAG.x,e.clientY-DRAG.y);ctlUp();if(mv<6&&c.type!=='button')aimLock(c);pts.delete(e.pointerId);down=null;return}if(down&&down.ctl){pts.delete(e.pointerId);down=null;return}if(down&&down.moved<6&&pts.size===1)pickAt(e.clientX,e.clientY);pts.delete(e.pointerId);if(!pts.size)down=null;pinch=0;if(e.pointerType!=='mouse')setTimeout(()=>{if(!pts.size&&!DRAG){PTR.hp=null}},900)};
   el.addEventListener('pointerup',up);el.addEventListener('pointercancel',e=>{pts.delete(e.pointerId);down=null});
-  el.addEventListener('wheel',e=>{e.preventDefault();if(CAM.mode==='orbit')CAM.og.r=clamp(CAM.og.r*(1+e.deltaY*.001),3,220)},{passive:false});
+  el.addEventListener('wheel',e=>{e.preventDefault();if(CAM.mode==='orbit')CAM.og.r=clamp(CAM.og.r*(1+e.deltaY*.001),3,220);else if(aimEnabled()){const t=aimTarget();if(t&&t.ctl&&t.ctl.type!=='button'){if(t.ctl.spring!=null){setCtl(t.ctl,clamp(t.ctl.value+(e.deltaY>0?.15:-.15),-1,1))}else aimAdjust(t.ctl,e.deltaY<0?1:-1)}}},{passive:false});
   el.addEventListener('pointerleave',()=>{$('#tip').hidden=true;if(!DRAG)PTR.has=false});
 }
 function rayFromScreen(x,y){const r=renderer.domElement.getBoundingClientRect();raycaster.setFromCamera({x:(x-r.left)/r.width*2-1,y:-(y-r.top)/r.height*2+1},camera);return raycaster}
-function pickAt(x,y){onHit(hitTest(rayFromScreen(x,y)))}
+function pickAt(x,y){if(typeof aimEnabled==='function'&&aimEnabled()){const h=hitTest(rayFromScreen(x,y));if(h&&h.act&&h.act!=='HOLD'){onHit(h);return}if(aimActivate())return}onHit(hitTest(rayFromScreen(x,y)))}
 let hoverT=0;
 function hover(e,force){const now=performance.now();if(!force&&now-hoverT<60)return;hoverT=now;const rc=rayFromScreen(e.clientX,e.clientY);const ch=ctlHit(rc);
   if(ch){PTR.hp=ch.point;PTR.act=true;const tip=$('#tip');renderer.domElement.style.cursor='grab';const r=$('#view').getBoundingClientRect();tip.textContent=ch.ctl.label||'';tip.style.left=(e.clientX-r.left)+'px';tip.style.top=(e.clientY-r.top)+'px';tip.hidden=!ch.ctl.label;return}
@@ -195,7 +195,7 @@ const XRS={pos:V(4,0,10),yaw:0};let VRB=null,VRBTN=[],CURBTN=[];
 function station(pos,yaw){XRS.pos.copy(pos);XRS.yaw=yaw||0;if(renderer&&renderer.xr.isPresenting&&!MODE.ar){dolly.position.copy(XRS.pos);dolly.rotation.y=XRS.yaw}}
 function setupXR(){
   const tmp=new THREE.Matrix4(),rc=new THREE.Raycaster();
-  for(let i=0;i<2;i++){const c=renderer.xr.getController(i);
+  for(let i=0;i<2;i++){const c=renderer.xr.getController(i);XRC[i]=c;c.addEventListener('connected',ev=>{c.userData.src=ev.data});c.addEventListener('disconnected',()=>{c.userData.src=null});
     const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(0,0,0),V(0,0,-8)]),new THREE.LineBasicMaterial({color:0xf0a81c}));c.add(line);
     const g=renderer.xr.getControllerGrip(i);const gl=makeGlove(i===1?1:-1);gl.g.rotation.set(-.35,0,(i===1?-1:1)*1.3);gl.g.position.set(0,-.01,.05);g.add(gl.g);g.userData.glove=gl;dolly.add(g);
     c.addEventListener('connected',ev=>{const s=ev.data&&ev.data.handedness==='left'?-1:1;g.remove(gl.g);const n=makeGlove(s);n.g.rotation.set(-.35,0,-s*1.3);n.g.position.set(0,-.01,.05);g.add(n.g);g.userData.glove=n});
@@ -260,12 +260,15 @@ function run(fn){fn().catch(e=>{if(e!==ABORT)console.error(e)})}
 
 /* ---------- panel ---------- */
 const P=$('#panel');
-P.addEventListener('click',e=>{const b=e.target.closest('[data-in]');if(b&&!b.disabled)dispatch(b.dataset.in)});
+P.addEventListener('click',e=>{if(e.target.closest('[data-pc]')){PANEL.pinned=false;panelState(false);return}const b=e.target.closest('[data-in]');if(b&&!b.disabled)dispatch(b.dataset.in)});
+const PANEL={open:true,pinned:false};
+function panelState(open){PANEL.open=open;P.classList.toggle('closed',!open);const t=$('#ptab');if(!t)return;t.hidden=open||!P.innerHTML;if(!open){const h3=P.querySelector('h3'),eb=P.querySelector('.eyebrow');t.innerHTML=`<b>${eb?eb.textContent:'Panel'}</b>${h3?h3.textContent:'Ver detalles'}`}}
+$('#ptab').addEventListener('click',()=>{PANEL.pinned=true;panelState(true)});
 P.addEventListener('pointerdown',e=>{const b=e.target.closest('.hold');if(b){HOLD.on=true;b.classList.add('on');b.setPointerCapture&&b.setPointerCapture(e.pointerId)}});
 const holdOff=()=>{HOLD.on=false;P.querySelectorAll('.hold.on').forEach(b=>b.classList.remove('on'))};
 P.addEventListener('pointerup',holdOff);P.addEventListener('pointercancel',holdOff);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function panel(h){P.innerHTML=h}
+function panel(h,o){if(!h){P.innerHTML='';panelState(false);return}P.innerHTML='<button class="pclose" type="button" data-pc="1" aria-label="Plegar el panel">–</button>'+h;const need=(o&&o.open)||/class="opt|class="btn hold|data-open|class="score/.test(h);panelState(need||PANEL.pinned)}
 function optsHTML(opts){return `<div class="list">${opts.map(o=>o.v==='HOLD'?`<button class="btn hold" type="button">${esc(o.t)}</button>`:`<button class="opt" type="button" data-in="${esc(o.v)}">${o.t}</button>`).join('')}</div>`}
 function setButtons(opts){CURBTN=opts;vrButtons(opts)}
 async function ask(head,opts,valid){
