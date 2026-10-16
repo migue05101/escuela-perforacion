@@ -115,6 +115,14 @@ input[type=text],select{background:var(--bg);border:1px solid var(--line);color:
 .gauge .band{position:absolute;left:0;right:0;background:color-mix(in srgb,var(--ok) 70%,transparent)}
 .gauge .mark{position:absolute;left:-8px;right:-8px;height:3px;background:var(--accent);box-shadow:0 0 6px var(--accent)}
 .tip{position:absolute;pointer-events:none;background:var(--glass);color:#ebe6da;font-size:13px;padding:4px 8px;border-radius:5px;border:1px solid var(--accent);transform:translate(12px,12px);white-space:nowrap}
+.joy{position:absolute;left:calc(18px + env(safe-area-inset-left,0px));bottom:150px;width:120px;height:120px;border-radius:50%;background:rgba(16,22,27,.45);border:2px solid rgba(255,255,255,.25);touch-action:none;display:grid;place-items:center}
+.joyKnob{width:52px;height:52px;border-radius:50%;background:rgba(240,168,28,.85);box-shadow:0 2px 8px #0008;pointer-events:none}
+.useBtn{position:absolute;right:calc(18px + env(safe-area-inset-right,0px));bottom:160px;width:84px;height:84px;border-radius:50%;background:rgba(240,168,28,.9);color:var(--accent-ink);border:0;font-family:var(--display);font-size:20px;font-weight:700;text-transform:uppercase;box-shadow:0 4px 12px #0008}
+.prompt{position:absolute;left:50%;top:58%;transform:translateX(-50%);background:var(--glass);color:#ebe6da;border:1px solid var(--accent);padding:6px 12px;border-radius:6px;font-size:14px;pointer-events:none;white-space:nowrap}
+.cross{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;pointer-events:none;opacity:.55}
+.cross::before,.cross::after{content:"";position:absolute;background:#fff;box-shadow:0 0 2px #000}
+.cross::before{left:6px;top:0;width:2px;height:14px}.cross::after{top:6px;left:0;height:2px;width:14px}
+.cross.lock{opacity:.95}
 .fade{position:absolute;inset:0;background:#0b0f12;opacity:0;pointer-events:none;transition:opacity .35s}
 .fade.on{opacity:1}
 .list{display:grid;gap:8px;margin:10px 0}
@@ -256,6 +264,10 @@ input[type=text],select{background:var(--bg);border:1px solid var(--line);color:
         <div class="txt" id="subText">—</div>
       </div>
     </div>
+    <div class="joy" id="joy" hidden><div class="joyKnob" id="joyKnob"></div></div>
+    <button class="useBtn" id="useBtn" type="button" hidden>Usar</button>
+    <div class="prompt" id="prompt" hidden></div>
+    <div class="cross" id="cross" hidden></div>
     <div class="fade" id="fade"></div>
   </div>
   <aside id="panel"></aside>
@@ -461,7 +473,8 @@ MODS.push(
  {id:'consola',n:'10',t:'Consola del perforador',d:'Perfora desde la cabina controlando peso sobre la broca, rotaria y bombas. Detecta la patada y cierra el pozo.',tag:'Perforador · Simulador',min:25,role:'perforador'},
  {id:'supervisor',n:'11',t:'Permiso, inspección y simulacro',d:'Revisa un permiso de trabajo en alturas, inspecciona el equipo buscando peligros y dirige un simulacro de patada.',tag:'Supervisor · Práctica',min:25,role:'supervisor'},
 );
-const COMMON=['hse','taladro','control','casos'];
+MODS.unshift({id:'recorrido',n:'00',t:'Recorrido libre',d:'Camina por toda la locación como en un videojuego: sube al piso, entra a la cabina, sube al encuelladero y baja por el pozo en corte.',tag:'Exploración · 1.ª persona',min:15});
+const COMMON=['recorrido','hse','taladro','control','casos'];
 const ROUTE={
  patio:{own:['patio','rigup'],prev:[]},
  cunero:{own:['cunero'],prev:['patio']},
@@ -672,7 +685,7 @@ function initEngine(){
   scene.add(sun);scene.add(sun.target);
   world=new THREE.Group();scene.add(world);
   raycaster=new THREE.Raycaster();
-  buildWorld();loadWorker();
+  buildWorld();loadWorker();initHands();
   setupInput(renderer.domElement);setupXR();
   new ResizeObserver(resize).observe(view);applyQuality();resize();
   renderer.setAnimationLoop(tick);
@@ -724,8 +737,14 @@ function onHit(h){if(!h)return;if(h.act){if(h.act==='HOLD')return;dispatch(h.act
 function setupInput(el){
   const pts=new Map();let down=null,pinch=0;
   const dist=()=>{const a=[...pts.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
-  el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pts.size===1)down={moved:0};if(pts.size===2)pinch=dist()});
+  el.addEventListener('pointerdown',e=>{
+    if(LOCK){const r=el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;if(!ctlDown(cx,cy,e.pointerId))pickAt(cx,cy);return}
+    el.setPointerCapture(e.pointerId);PTR.x=e.clientX;PTR.y=e.clientY;PTR.has=true;
+    if(pts.size===0&&ctlDown(e.clientX,e.clientY,e.pointerId)){down={moved:0,ctl:true};pts.set(e.pointerId,{x:e.clientX,y:e.clientY});return}
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pts.size===1)down={moved:0};if(pts.size===2)pinch=dist();if(e.pointerType!=='mouse')hover(e,true)});
   el.addEventListener('pointermove',e=>{
+    if(LOCK)return;PTR.x=e.clientX;PTR.y=e.clientY;PTR.has=true;
+    if(DRAG&&DRAG.id===e.pointerId){ctlMove(e.clientX,e.clientY);return}
     const p=pts.get(e.pointerId);if(!p){if(e.pointerType==='mouse')hover(e);return}
     const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
     if(pts.size===1){if(down)down.moved+=Math.abs(dx)+Math.abs(dy);if(down&&down.moved<5)return;
@@ -733,15 +752,17 @@ function setupInput(el){
       if(CAM.mode==='orbit'){CAM.og.th-=dx*.006;CAM.og.ph=clamp(CAM.og.ph-dy*.006,.12,MODE.under?2.6:1.56)}
       else if(CAM.mode==='fp'){CAM.fg.yaw+=dx*.005;CAM.fg.pitch=clamp(CAM.fg.pitch+dy*.005,-1.35,1.2)}}
     else if(pts.size===2&&CAM.mode==='orbit'){const d=dist();if(pinch)CAM.og.r=clamp(CAM.og.r*pinch/d,3,220);pinch=d;if(down)down.moved=99}});
-  const up=e=>{if(down&&down.moved<6&&pts.size===1)pickAt(e.clientX,e.clientY);pts.delete(e.pointerId);if(!pts.size)down=null;pinch=0};
+  const up=e=>{if(DRAG&&DRAG.id===e.pointerId){ctlUp();pts.delete(e.pointerId);down=null;return}if(down&&down.ctl){pts.delete(e.pointerId);down=null;return}if(down&&down.moved<6&&pts.size===1)pickAt(e.clientX,e.clientY);pts.delete(e.pointerId);if(!pts.size)down=null;pinch=0;if(e.pointerType!=='mouse')setTimeout(()=>{if(!pts.size&&!DRAG){PTR.hp=null}},900)};
   el.addEventListener('pointerup',up);el.addEventListener('pointercancel',e=>{pts.delete(e.pointerId);down=null});
   el.addEventListener('wheel',e=>{e.preventDefault();if(CAM.mode==='orbit')CAM.og.r=clamp(CAM.og.r*(1+e.deltaY*.001),3,220)},{passive:false});
-  el.addEventListener('pointerleave',()=>{$('#tip').hidden=true});
+  el.addEventListener('pointerleave',()=>{$('#tip').hidden=true;if(!DRAG)PTR.has=false});
 }
 function rayFromScreen(x,y){const r=renderer.domElement.getBoundingClientRect();raycaster.setFromCamera({x:(x-r.left)/r.width*2-1,y:-(y-r.top)/r.height*2+1},camera);return raycaster}
 function pickAt(x,y){onHit(hitTest(rayFromScreen(x,y)))}
 let hoverT=0;
-function hover(e){const now=performance.now();if(now-hoverT<60)return;hoverT=now;const h=hitTest(rayFromScreen(e.clientX,e.clientY));const tip=$('#tip');
+function hover(e,force){const now=performance.now();if(!force&&now-hoverT<60)return;hoverT=now;const rc=rayFromScreen(e.clientX,e.clientY);const ch=ctlHit(rc);
+  if(ch){PTR.hp=ch.point;PTR.act=true;const tip=$('#tip');renderer.domElement.style.cursor='grab';const r=$('#view').getBoundingClientRect();tip.textContent=ch.ctl.label||'';tip.style.left=(e.clientX-r.left)+'px';tip.style.top=(e.clientY-r.top)+'px';tip.hidden=!ch.ctl.label;return}
+  const h=hitTest(rc);PTR.hp=h?h.point:null;PTR.act=!!(h&&h.act);const tip=$('#tip');
   const lbl=h&&(h.act?h.obj.userData.label:(MODE.onPart&&PARTS[h.part]?PARTS[h.part].n:null));
   renderer.domElement.style.cursor=lbl||(h&&h.act)?'pointer':'grab';
   if(lbl){const r=$('#view').getBoundingClientRect();tip.textContent=lbl;tip.style.left=(e.clientX-r.left)+'px';tip.style.top=(e.clientY-r.top)+'px';tip.hidden=false}else tip.hidden=true}
@@ -753,10 +774,11 @@ function setupXR(){
   const tmp=new THREE.Matrix4(),rc=new THREE.Raycaster();
   for(let i=0;i<2;i++){const c=renderer.xr.getController(i);
     const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(0,0,0),V(0,0,-8)]),new THREE.LineBasicMaterial({color:0xf0a81c}));c.add(line);
-    const sel=down=>{tmp.identity().extractRotation(c.matrixWorld);rc.ray.origin.setFromMatrixPosition(c.matrixWorld);rc.ray.direction.set(0,0,-1).applyMatrix4(tmp);
-      if(down){const h=hitTest(rc);if(h&&h.act==='HOLD'){HOLD.on=true;return}onHit(h)}else HOLD.on=false};
-    c.addEventListener('selectstart',()=>sel(true));c.addEventListener('selectend',()=>sel(false));dolly.add(c);
-    const g=renderer.xr.getControllerGrip(i);box(g,.05,.04,.14,MAT.steelDk,0,0,.03);dolly.add(g)}
+    const g=renderer.xr.getControllerGrip(i);const gl=makeGlove(i===1?1:-1);gl.g.rotation.set(-.35,0,(i===1?-1:1)*1.3);gl.g.position.set(0,-.01,.05);g.add(gl.g);g.userData.glove=gl;dolly.add(g);
+    c.addEventListener('connected',ev=>{const s=ev.data&&ev.data.handedness==='left'?-1:1;g.remove(gl.g);const n=makeGlove(s);n.g.rotation.set(-.35,0,-s*1.3);n.g.position.set(0,-.01,.05);g.add(n.g);g.userData.glove=n});
+    const sel=down=>{tmp.identity().extractRotation(c.matrixWorld);rc.ray.origin.setFromMatrixPosition(c.matrixWorld);rc.ray.direction.set(0,0,-1).applyMatrix4(tmp);const gv=g.userData.glove;if(gv)gv.set(down?.9:.2,down?.2:0);
+      if(down){if(xrGrab(i,g,rc))return;const h=hitTest(rc);if(h&&h.act==='HOLD'){HOLD.on=true;return}onHit(h)}else{xrRelease(i);HOLD.on=false}};
+    c.addEventListener('selectstart',()=>sel(true));c.addEventListener('selectend',()=>sel(false));c.addEventListener('squeezestart',()=>sel(true));c.addEventListener('squeezeend',()=>sel(false));dolly.add(c)}
   // tablero flotante con instructor + tarea
   const cv=document.createElement('canvas');cv.width=1024;cv.height=512;const tx=new THREE.CanvasTexture(cv);tx.encoding=THREE.sRGBEncoding;
   VRB={cv,tx,mesh:new THREE.Mesh(new THREE.PlaneGeometry(1.3,.65),new THREE.MeshBasicMaterial({map:tx,transparent:true}))};
@@ -778,7 +800,7 @@ async function enterXR(mode){
   if(!ok){toast(mode==='immersive-vr'?'Modo VR no disponible aquí. En las Quest, abre la versión publicada en su navegador.':'Modo AR no disponible aquí. Prueba en Chrome para Android con ARCore o en las Quest 3.');return}
   try{const s=await navigator.xr.requestSession(mode,{optionalFeatures:['local-floor']});renderer.xr.setReferenceSpaceType('local-floor');await renderer.xr.setSession(s);
     if(mode==='immersive-ar'){MODE.ar=true;sky.visible=false;ground.visible=false;world.scale.setScalar(.018);world.position.set(0,0,-1.4)}
-    else{dolly.position.copy(XRS.pos);dolly.rotation.y=XRS.yaw}
+    else{dolly.position.copy(XRS.pos);dolly.rotation.y=XRS.yaw;if(MODE.walk)dolly.position.copy(WALK.pos)}
   }catch(e){toast('No se pudo iniciar la sesión inmersiva: '+e.message)}}
 $('#btnVR').addEventListener('click',()=>enterXR('immersive-vr'));
 $('#btnAR').addEventListener('click',()=>enterXR('immersive-ar'));
@@ -1031,15 +1053,10 @@ function buildDoghouse(){
   for(const dx of[-1.6,1.6])for(const dz of[-1.9,1.9])bar(g,V(x+dx,0,z+dz),V(x+dx,F-.2,z+dz),.3,MAT.steel);
   rod(g,V(x-1.6,.5,z-1.9),V(x-1.6,F-.6,z+1.9),.08,MAT.steelDk,1);rod(g,V(x+1.6,.5,z-1.9),V(x+1.6,F-.6,z+1.9),.08,MAT.steelDk,1);
   boxT(g,3.6,.3,4.2,MAT.steel,x,F-.15,z);
-  boxT(g,3.6,3,4.2,MAT.white,x,F+1.5,z);
-  const gl=box(g,.06,1.3,3.4,MAT.glass,x+1.81,F+1.9,z);gl.castShadow=false;box(g,1.4,1.1,.06,MAT.glass,x+.6,F+1.9,z+2.11).castShadow=false;
-  box(g,1.2,.6,1,MAT.white,x-.5,F+3.3,z);
+  buildCabin(g);
   RIG.beacons=[];[[x+1.2,0xff3018],[x+.7,0xffb000]].forEach(([bx,c])=>{const b=new THREE.Mesh(new THREE.SphereGeometry(.17,12,10),std(c,{emissive:0x000000,roughness:.3}));b.position.set(bx,F+3.2,z-1.6);b.userData.c=c;g.add(b);RIG.beacons.push(b)});
-  // consola del perforador
-  const con=box(g,.8,.9,2,MAT.steelDk,x+1.1,F+.75,z);con.rotation.z=.25;
-  box(g,.04,.5,.8,std(0x103550,{emissive:0x0a3a5a,roughness:.2}),x+1.35,F+1.35,z-.4);
   // pasarela al piso
-  boxT(g,.5,.1,1.6,MAT.grate,x+2.0,F-.05,z+1.6);
+  boxT(g,.5,.1,1.0,MAT.grate,x+2.0,F-.05,z+1.45);
   // panel remoto de BOP (en el piso, junto a la puerta)
   const bp=new THREE.Group();bp.position.set(-4.85,F,-3.6);g.add(bp);RIG.bopPanel=bp;
   box(bp,.12,1.1,.1,MAT.steel,0,.55,0);box(bp,.18,.7,.9,MAT.red,0,1.45,0);
@@ -1203,7 +1220,7 @@ function buildCrew(){
   const g=new THREE.Group();world.add(g);RIG.crew=g;
   const a=makePerson({});a.g.position.set(1.45,F,.95);a.g.rotation.y=-2.3;g.add(a.g);RIG.hand1=a;
   const b=makePerson({});b.g.position.set(-1.35,F,.9);b.g.rotation.y=2.4;g.add(b.g);RIG.hand2=b;
-  const d=makePerson({suit:0x2a5a86,hat:0xf3f3f0});d.g.position.set(-7.0,F,-2.3);d.g.rotation.y=Math.PI/2;g.add(d.g);RIG.driller=d;
+  const d=makePerson({suit:0x2a5a86,hat:0xf3f3f0});d.g.position.set(-8.75,F,-3.9);d.g.rotation.y=Math.PI/2;g.add(d.g);RIG.driller=d;
   const r1=makePerson({suit:0xd8661c});r1.g.position.set(3.4,0,15);r1.g.rotation.y=-.6;g.add(r1.g);
   const r2=makePerson({suit:0x2f7d4a,hat:0xffffff});r2.g.position.set(11.4,0,-11.6);r2.g.rotation.y=1.2;g.add(r2.g);RIG.mudman=r2;
   // trabajador que sube por la escalera (casos)
@@ -1307,6 +1324,451 @@ function animGLTF(P,dt,T){
   if(P.talk&&W.head&&P.anim!=='walk'){W.head.rotation.x+=Math.sin(t*5.2)*.05;W.head.rotation.y+=Math.sin(t*2.1)*.06}
   if(P.mouth){const m=P.talk?(.3+.7*Math.abs(Math.sin(t*15)*Math.sin(t*4.7+1))):0;P.mouth.scale.y=lerp(P.mouth.scale.y,P.mouthBase*(1+m*2.6),.5)}
 }
+/* ===================================================================== CABINA DEL PERFORADOR: interior, consola, pantallas, manómetros y simulación */
+const CAB={x:-7.5,z:-2.4,chair:V(-7.95,0,-2.65),eye:null,ctl:{},gauges:{},screens:[],lights:{}};
+function buildCabin(g){
+  const x=CAB.x,z=CAB.z,y0=F;CAB.eye=V(-7.88,F+1.25,-2.65);
+  const wallO=MAT.white,wallI=std(0xc9ccc8,{roughness:.8,metalness:0}),frame=std(0x3a4148,{roughness:.5,metalness:.5});
+  const W=(w,h,d,px,py,pz,m)=>boxT(g,w,h,d,m||wallO,px,py,pz);
+  // paredes (paneles delgados: se ven por dentro y por fuera)
+  W(.08,3,4.2,x-1.76,y0+1.5,z);                               // fondo
+  W(3.6,3,.08,x,y0+1.5,z-2.06);                               // lado izquierdo
+  W(3.6,1.0,.08,x,y0+.5,z+2.06);W(3.6,.55,.08,x,y0+2.73,z+2.06);W(1.4,1.45,.08,x-1.1,y0+1.73,z+2.06);W(.6,1.45,.08,x+1.5,y0+1.73,z+2.06); // lado derecho con ventana
+  const gR=box(g,1.6,1.45,.03,MAT.glass,x+.4,y0+1.73,z+2.06);gR.castShadow=false;
+  // frente hacia la mesa rotaria: ventanal grande + puerta
+  const fx=x+1.8;W(.08,.9,3.0,fx,y0+.45,z-.6);W(.08,.35,4.2,fx,y0+2.83,z);W(.08,2.65,.12,fx,y0+1.33,z+.95);W(.08,2.65,.12,fx,y0+1.33,z+2.04);W(.08,.5,1.0,fx,y0+2.4,z+1.5);
+  const gl=box(g,.03,1.72,2.94,MAT.glass,fx,y0+1.76,z-.6);gl.castShadow=false;
+  for(const dz of[-1.1,-.1])box(g,.1,1.75,.06,frame,fx,y0+1.76,z+dz-.0);
+  // puerta entreabierta
+  const door=new THREE.Group();door.position.set(fx,y0,z+2.0);g.add(door);box(door,.05,2.12,.92,std(0x8a9096,{roughness:.6,metalness:.4}),.0,1.06,-.46);box(door,.06,.5,.6,MAT.glass,.0,1.6,-.46);door.rotation.y=1.25;
+  // techo: parte trasera sólida, claraboya hacia el mástil
+  W(2.4,.08,4.2,x-.6,y0+3.0,z);const sky=box(g,1.2,.04,4.2,MAT.glass,x+1.2,y0+3.0,z);sky.castShadow=false;
+  box(g,1.2,.6,1,MAT.white,x-.9,y0+3.34,z);
+  // piso de caucho
+  boxT(g,3.5,.02,4.1,std(0x22262a,{roughness:.95,metalness:0}),x,y0+.01,z);
+  // luz interior
+  const lp=box(g,1.1,.04,.3,MAT.lamp,x-.4,y0+2.96,z);lp.castShadow=false;
+  const L=new THREE.PointLight(0xfff2de,1.1,7,1.4);L.position.set(x-.2,y0+2.6,z);g.add(L);CAB.light=L;
+  // ---------- sillón tipo "cyber chair" ----------
+  const ch=new THREE.Group();ch.position.set(CAB.chair.x,y0,CAB.chair.z);g.add(ch);CAB.chairG=ch;
+  const leather=std(0x1b1d20,{roughness:.55,metalness:.05}),alu=std(0x9aa1a6,{roughness:.35,metalness:.8}),pod=std(0x2a2f34,{roughness:.45,metalness:.4});
+  cyl(ch,.32,.36,.06,alu,0,.03,0,24);cyl(ch,.06,.06,.42,alu,0,.27,0,12);
+  box(ch,.56,.12,.56,leather,0,.52,0);box(ch,.14,.82,.56,leather,-.3,.96,0).rotation.z=-.12;box(ch,.1,.2,.32,leather,-.39,1.45,0).rotation.z=-.12;
+  for(const s of[-1,1]){box(ch,.06,.24,.08,alu,.05,.62,s*.38);box(ch,.72,.1,.2,pod,.22,.72,s*.38);box(ch,.7,.02,.18,std(0x111316,{roughness:.3,metalness:.3}),.22,.775,s*.38)}
+  // ---------- mandos del apoyabrazos izquierdo: malacate ----------
+  const mkStick=(par,px,pz,col,label)=>{const p=new THREE.Group();p.position.set(px,.79,pz);par.add(p);
+    cyl(p,.035,.042,.03,std(0x111316),0,.015,0,16);const boot=new THREE.Mesh(new THREE.SphereGeometry(.035,14,8,0,Math.PI*2,0,Math.PI/2),std(0x0d0e10,{roughness:.9}));boot.position.y=.025;p.add(boot);
+    const pv=new THREE.Group();pv.position.y=.035;p.add(pv);cyl(pv,.011,.013,.12,alu,0,.06,0,10);const kn=new THREE.Mesh(new THREE.CylinderGeometry(.022,.026,.085,14),std(col,{roughness:.5}));kn.position.y=.15;pv.add(kn);
+    const tr=box(pv,.012,.018,.02,std(0xc8a020),.0,.15,-.026);
+    const l=label3D(label,.09);l.position.set(0,.24,0);p.add(l);return pv};
+  const jDW=mkStick(ch,.5,-.38,0x2b2d30,'Malacate');
+  CAB.ctl.dw=addCtl({id:'dw',obj:jDW,type:'joy',min:-1,max:1,value:0,spring:0,axis:'z',ang:[.42,-.42],drag:'y',sens:.9,grip:V(0,.15,0),hit:.12,hitPos:V(0,.12,0),label:'Joystick del malacate',dirW:V(1,0,0)});
+  const btn=(par,px,py,pz,col,id,lbl,onPress,r=.016)=>{const b=new THREE.Group();b.position.set(px,py,pz);par.add(b);cyl(b,r+.006,r+.006,.012,std(0x111316),0,0,0,16);
+    const cap=cyl(b,r,r,.014,std(col,{roughness:.35,emissive:0x000000}),0,.012,0,16);const c=addCtl({id,obj:b,type:'button',cap,grip:V(0,.02,0),hit:.05,hitPos:V(0,.01,0),label:lbl,onPress});c.capMat=cap.material;
+    if(lbl){const l=label3D(lbl,.065);l.position.y=.045;b.add(l)}return c};
+  CAB.ctl.auto=btn(ch,.36,.79,-.32,0x2e9b45,'auto','AUTO',()=>{CS.auto=!CS.auto;if(CS.auto)CS.manualT=0});
+  const kn=(par,px,py,pz,col,id,lbl,min,max,val,ang=[2.3,-2.3])=>{const k=new THREE.Group();k.position.set(px,py,pz);par.add(k);cyl(k,.026,.026,.008,std(0x111316),0,0,0,18);
+    const pv=new THREE.Group();pv.position.y=.012;k.add(pv);cyl(pv,.02,.022,.03,std(col,{roughness:.5}),0,.015,0,18);box(pv,.004,.004,.02,std(0xffffff,{emissive:0x999999}),0,.032,-.01);
+    const l=label3D(lbl,.065);l.position.y=.06;k.add(l);return addCtl({id,obj:pv,type:'knob',axis:'y',ang,min,max,value:val,drag:'x',sens:.7,grip:V(0,.02,0),hit:.06,hitPos:V(0,.015,0),label:lbl,dirW:V(0,0,1)})};
+  CAB.ctl.wobSet=kn(ch,.36,.79,-.44,0x333a40,'wobSet','Peso auto',0,40,18);
+  // ---------- apoyabrazos derecho: top drive y bombas ----------
+  const tdl=new THREE.Group();tdl.position.set(.5,.79,.38);ch.add(tdl);box(tdl,.05,.02,.12,std(0x111316),0,.01,0);
+  const tdp=new THREE.Group();tdp.position.y=.02;tdl.add(tdp);cyl(tdp,.008,.008,.11,alu,0,.055,0,8);box(tdp,.06,.028,.032,std(0x2a5a86,{roughness:.5}),0,.115,0);
+  const lt=label3D('Rotaria RPM',.075);lt.position.y=.19;tdl.add(lt);
+  CAB.ctl.rpm=addCtl({id:'rpm',obj:tdp,type:'lever',min:0,max:180,value:0,axis:'z',ang:[.55,-.55],drag:'y',sens:.6,grip:V(0,.115,0),hit:.1,hitPos:V(0,.1,0),label:'Palanca de rotaria (top drive)',dirW:V(1,0,0)});
+  CAB.ctl.p1=kn(ch,.35,.79,.32,0xb1281c,'p1','Bomba 1',0,120,0);
+  CAB.ctl.p2=kn(ch,.35,.79,.44,0xb1281c,'p2','Bomba 2',0,120,0);
+  CAB.ctl.estop=btn(ch,.2,.79,.38,0xd8261a,'estop','PARADA',()=>{CS.estop=2;setCtl(CAB.ctl.rpm,0);setCtl(CAB.ctl.p1,0);setCtl(CAB.ctl.p2,0);CS.auto=false},.022);
+  // ---------- escritorio con pantallas ----------
+  const desk=new THREE.Group();desk.position.set(x+.75,y0,CAB.chair.z);g.add(desk);
+  box(desk,.5,.06,2.2,std(0x2a2f34,{roughness:.5,metalness:.3}),0,.78,0);box(desk,.46,.76,2.1,std(0x3a4148,{roughness:.6,metalness:.3}),.02,.38,0);
+  CAB.screens=[];
+  [[-.82,'scrA',.62,1.08],[0,'scrB',.74,.93],[.82,'scrC',.62,1.08]].forEach(([dz,id,dx,hy],i)=>{
+    const s=new THREE.Group();s.position.set(x+dx,y0+hy,CAB.chair.z+dz);g.add(s);s.lookAt(CAB.eye.x,y0+hy,CAB.eye.z);
+    box(s,.62,.4,.04,std(0x0d0f12,{roughness:.4,metalness:.4}),0,0,-.025);rod(s,V(0,-.2,-.03),V(0,-.33,-.03),.02,frame);
+    const cv=document.createElement('canvas');cv.width=640;cv.height=400;const tx=new THREE.CanvasTexture(cv);tx.encoding=THREE.sRGBEncoding;tx.anisotropy=4;
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(.58,.3625),new THREE.MeshBasicMaterial({map:tx,toneMapped:false}));m.position.z=.0;m.rotation.x=0;s.add(m);m.castShadow=false;s.rotateX(-.12);
+    CAB.screens.push({cv,tx,g:cv.getContext('2d'),id})});
+  // ---------- indicador de peso analógico (tipo Martin-Decker) y manómetros ----------
+  const ga=(par,pos,r,o)=>{const G=gauge3D(o);G.g.position.copy(pos);par.add(G.g);G.g.lookAt(CAB.eye);G.g.scale.setScalar(r/.12);return G};
+  CAB.gauges.weight=ga(g,V(x+1.55,y0+2.32,CAB.chair.z),.17,{min:0,max:400,major:50,label:'PESO',unit:'klb',second:{min:0,max:40,color:'#c0281c',label:'PSB'}});
+  CAB.gauges.spp=ga(g,V(x+1.55,y0+2.3,CAB.chair.z-.52),.12,{min:0,max:5000,major:1000,label:'PRESIÓN BOMBA',unit:'psi'});
+  CAB.gauges.tq=ga(g,V(x+1.55,y0+2.3,CAB.chair.z+.52),.12,{min:0,max:30,major:5,label:'TORQUE',unit:'klb·pie'});
+  const ov=new THREE.Group();ov.position.set(x+1.62,y0+2.31,CAB.chair.z);g.add(ov);box(ov,.08,.42,1.62,std(0x2a2f34,{roughness:.5,metalness:.4}),.04,0,0);rod(g,V(x+1.66,y0+2.52,CAB.chair.z),V(x+1.66,y0+2.95,CAB.chair.z),.025,frame);
+  // ---------- panel de control de pozo (analógico, azul) ----------
+  const bp=new THREE.Group();bp.position.set(x-.25,y0,z+1.05);g.add(bp);bp.lookAt(CAB.eye.x,y0,CAB.eye.z);CAB.bopG=bp;
+  const blue=std(0x1f4f8f,{roughness:.45,metalness:.3});box(bp,.9,.95,.36,blue,0,.475,0);const top=new THREE.Group();top.position.set(0,.95,.05);top.rotation.x=.55;bp.add(top);box(top,.9,.03,.5,blue,0,0,0);
+  const lab=new THREE.Mesh(new THREE.PlaneGeometry(.86,.07),new THREE.MeshBasicMaterial({map:textTex(['CONTROL DE POZO · BOP'],{w:768,h:64,bg:'#163a6a',font:'bold 40px Arial'}),toneMapped:false}));lab.rotation.x=-Math.PI/2;lab.position.set(0,.017,-.21);top.add(lab);
+  const tg=(px,pz,o)=>{const G=gauge3D(o);G.g.position.set(px,.018,pz);G.g.rotation.x=-Math.PI/2;G.g.scale.setScalar(.075/.12);top.add(G.g);return G};
+  CAB.gauges.dp=tg(-.3,-.08,{min:0,max:2000,major:500,label:'TUBERÍA',unit:'psi'});CAB.gauges.cs=tg(-.1,-.08,{min:0,max:2000,major:500,label:'REVEST.',unit:'psi'});CAB.gauges.acc=tg(.12,-.08,{min:0,max:5000,major:1000,label:'ACUMUL.',unit:'psi'});
+  const bb=(px,pz,col,id,lbl,fn)=>{const b=btn(top,px,.016,pz,col,id,lbl,fn,.022);const lt=cyl(top,.009,.009,.01,std(0x222222,{emissive:0x000000}),px+.035,.02,pz-.03,10);CAB.lights[id]=lt;return b};
+  CAB.ctl.master=bb(-.32,.13,0xe0b21c,'master','MAESTRO',()=>{CS.masterT=6});
+  CAB.ctl.ann=bb(-.13,.13,0xc0281c,'ann','CERRAR ANULAR',()=>{if(CS.masterT>0){CS.masterT=0;bopClose('annular')}else CS.msg('Presiona primero MAESTRO y luego la función')});
+  CAB.ctl.rams=bb(.06,.13,0xc0281c,'rams','CERRAR ARIETES',()=>{if(CS.masterT>0){CS.masterT=0;bopClose('rams')}else CS.msg('Presiona primero MAESTRO y luego la función')});
+  CAB.ctl.hcr=bb(.25,.13,0x2e8b3a,'hcr','ABRIR HCR',()=>{if(CS.masterT>0){CS.masterT=0;CS.hcr=true;CS.msg('Válvula HCR abierta hacia el múltiple de estrangulación')}else CS.msg('Presiona primero MAESTRO y luego la función')});
+  CAB.ctl.sil=btn(top,.36,.016,-.12,0x2a5a86,'sil','SILENCIAR',()=>{CS.silenced=true},.016);
+  // pantalla de radio / intercomunicador en la pared izquierda
+  const rad=new THREE.Group();rad.position.set(x-.3,y0+1.55,z-2.0);g.add(rad);box(rad,.3,.18,.08,std(0x1b1d20),0,0,0);box(rad,.04,.18,.03,std(0x111111),.12,.2,0);
+  // proxy de los controles: apagados hasta sentarse
+  CTLS.forEach(c=>c.off=true);
+}
+
+/* ---------- manómetro 3D ---------- */
+function gauge3D(o){
+  o=Object.assign({min:0,max:100,major:10,label:'',unit:''},o);
+  const g=new THREE.Group();const S=256,cv=document.createElement('canvas');cv.width=cv.height=S;const x=cv.getContext('2d');
+  const phi=t=>(225-270*t)*Math.PI/180;
+  x.fillStyle='#f4f1e8';x.beginPath();x.arc(S/2,S/2,S/2-4,0,7);x.fill();
+  const scale=(sc,R,col,txtR,font)=>{const n=Math.round((sc.max-sc.min)/(sc.major||((sc.max-sc.min)/8)));x.strokeStyle=col;x.fillStyle=col;
+    for(let i=0;i<=n*5;i++){const t=i/(n*5),a=phi(t),maj=i%5===0;x.lineWidth=maj?3:1.2;const r0=R-(maj?18:9);x.beginPath();x.moveTo(S/2+Math.cos(a)*r0,S/2-Math.sin(a)*r0);x.lineTo(S/2+Math.cos(a)*R,S/2-Math.sin(a)*R);x.stroke();
+      if(maj){const v=sc.min+(sc.max-sc.min)*t;x.font=font;x.textAlign='center';x.textBaseline='middle';x.fillText(v>=1000?(v/1000)+'k':Math.round(v),S/2+Math.cos(a)*txtR,S/2-Math.sin(a)*txtR)}}};
+  scale(o,S/2-10,'#14181c',S/2-42,'bold 20px Arial');
+  if(o.second)scale(Object.assign({major:5},o.second),S/2-66,o.second.color,S/2-92,'bold 15px Arial');
+  x.fillStyle='#14181c';x.font='bold 17px Arial';x.textAlign='center';x.fillText(o.label,S/2,S/2+52);x.font='14px Arial';x.fillText(o.unit,S/2,S/2+72);
+  if(o.second){x.fillStyle=o.second.color;x.font='bold 13px Arial';x.fillText(o.second.label,S/2,S/2-40)}
+  const tx=new THREE.CanvasTexture(cv);tx.encoding=THREE.sRGBEncoding;
+  const face=new THREE.Mesh(new THREE.CircleGeometry(.12,40),new THREE.MeshBasicMaterial({map:tx,toneMapped:false}));g.add(face);
+  const bez=new THREE.Mesh(new THREE.TorusGeometry(.124,.012,10,40),std(0x2a2f34,{metalness:.8,roughness:.3}));g.add(bez);
+  const back=new THREE.Mesh(new THREE.CylinderGeometry(.124,.124,.05,32),std(0x2a2f34,{metalness:.6,roughness:.4}));back.rotation.x=Math.PI/2;back.position.z=-.026;g.add(back);
+  const mkN=(col,len,w)=>{const p=new THREE.Group();p.position.z=.006;g.add(p);const n=new THREE.Mesh(new THREE.BoxGeometry(w,len,.004),new THREE.MeshBasicMaterial({color:col}));n.position.y=len/2-.012;p.add(n);return p};
+  const n1=mkN(0x111111,.105,.006),n2=o.second?mkN(0xc0281c,.08,.005):null;
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.012,12),std(0x111111));cap.rotation.x=Math.PI/2;cap.position.z=.01;g.add(cap);
+  const glass=new THREE.Mesh(new THREE.CircleGeometry(.122,40),new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:.08,roughness:0,metalness:1}));glass.position.z=.014;g.add(glass);
+  g.traverse(m=>{if(m.isMesh)m.castShadow=false});
+  const G={g,v:0,v2:0,set(v,v2){this.v=lerp(this.v,v,.25);const t=clamp((this.v-o.min)/(o.max-o.min),0,1);n1.rotation.z=phi(t)-Math.PI/2;
+    if(n2&&v2!=null){this.v2=lerp(this.v2,v2,.25);const t2=clamp((this.v2-o.second.min)/(o.second.max-o.second.min),0,1);n2.rotation.z=phi(t2)-Math.PI/2}}};
+  G.set(o.min,o.second?o.second.min:null);return G}
+
+/* ===================================================================== SIMULACIÓN DE PERFORACIÓN */
+const KS=60,STRW=182;
+const CS={};
+function consoleReset(o){
+  Object.assign(CS,{bit:2134.5,hole:2135,wob:0,hook:STRW,rpm:0,tq:0,spm1:0,spm2:0,flowIn:0,spp:0,flowOut:0,pit:182,gain:0,rop:0,auto:false,manualT:0,estop:0,
+    kickEnabled:false,kickAt:4.5,kick:false,kickT:0,annular:false,rams:false,hcr:false,sidpp:0,sicp:0,masterT:0,silenced:false,alarms:[],msgs:[],hist:[],histT:0,drawT:0,
+    start:2135,events:{},impact:0,noPumpT:0,stall:0,run:true,joint:0,ev:[]},o||{});
+  CS.msg=t=>{CS.msgs.unshift({t,ts:performance.now()});CS.msgs.length=Math.min(CS.msgs.length,6);CS.ev.push(t)};
+  if(RIG.annular)RIG.annular.material.color.copy(lin(0xb1281c));
+  if(CAB.ctl.dw)['dw','rpm','p1','p2'].forEach(k=>setCtl(CAB.ctl[k],0,true));
+  if(CAB.ctl.wobSet)setCtl(CAB.ctl.wobSet,18,true);
+}
+consoleReset();
+function bopClose(which){
+  if(which==='annular'){if(CS.annular)return;CS.annular=true;tween(1.4,p=>RIG.annular.material.color.setRGB(lerp(.43,.03,p),lerp(.02,.2,p),lerp(.012,.04,p)));CS.msg('Preventora anular cerrada')}
+  else{if(CS.rams)return;CS.rams=true;CS.msg('Arietes de tubería cerrados')}
+  CS.ev.push('close:'+which);
+}
+const TOPS=F+1.0+9;
+function consoleVisual(){const d=CS.bit-CS.start+.5;setBlock(clamp(TOPS-d-.25-F+EOFF,EOFF+.6,H-2.2));placeStand()}
+function consoleSim(dt){
+  if(!CS.run)return;
+  const c=CAB.ctl;
+  if(CS.estop>0)CS.estop-=dt;
+  // bombas (rampa)
+  const tSpm1=c.p1.value,tSpm2=c.p2.value;CS.spm1=lerp(CS.spm1,tSpm1,1-Math.exp(-dt*1.6));CS.spm2=lerp(CS.spm2,tSpm2,1-Math.exp(-dt*1.6));
+  if(CS.spm1<.5)CS.spm1=tSpm1<.5?0:CS.spm1;if(CS.spm2<.5)CS.spm2=tSpm2<.5?0:CS.spm2;
+  CS.flowIn=(CS.spm1+CS.spm2)*3.5;
+  // rotaria
+  let tr=CS.estop>0?0:c.rpm.value;if(CS.stall>0){CS.stall-=dt;tr=0}CS.rpm=lerp(CS.rpm,tr,1-Math.exp(-dt*2.2));if(CS.rpm<1&&tr<1)CS.rpm=0;
+  // malacate: + baja la sarta
+  let joy=CS.estop>0?0:c.dw.value;if(KEYS.has('ArrowUp')&&MODE.console)joy=.6;if(KEYS.has('ArrowDown')&&MODE.console)joy=-.6;
+  const onB=CS.bit>=CS.hole-1e-3;
+  let v=joy*.75;
+  if(Math.abs(joy)>.08){if(CS.auto){CS.auto=false;CS.msg('Autoperforador desactivado (mando manual)')}}
+  else if(CS.auto){const ok=CS.rpm>20&&CS.flowIn>300;v=ok?clamp(CS.rop+(c.wobSet.value-CS.wob)/KS*1.6,-.08,.25):0;if(!onB&&ok)v=.25}
+  const before=CS.bit-CS.hole;
+  CS.bit+=v*dt;
+  // límites del bloque (protector de corona / de piso)
+  const dmin=TOPS-.25-F+EOFF-(H-2.2)-.5+CS.start,dmax=TOPS-.25-F+EOFF-(EOFF+.6)-.5+CS.start;
+  if(CS.bit<dmin){CS.bit=dmin;if(!CS.events.crown){CS.events.crown=1;CS.msg('PROTECTOR DE CORONA: el bloque se detuvo');CS.ev.push('crown')}}else CS.events.crown=0;
+  if(CS.bit>dmax){CS.bit=dmax;if(!CS.events.floor){CS.events.floor=1;CS.msg('Unión perforada: el bloque llegó abajo');CS.ev.push('kellydown')}}else CS.events.floor=0;
+  const after=CS.bit-CS.hole;
+  if(before<=0&&after>0&&v>.42){CS.ev.push('impact');CS.msg('¡Golpe en el fondo! Baja más despacio al tocar fondo')}
+  // peso sobre la broca
+  CS.bit=Math.min(CS.bit,CS.hole+55/KS);
+  CS.wob=Math.max(0,(CS.bit-CS.hole)*KS);
+  // avance (ROP)
+  const flowF=clamp(CS.flowIn/450,0,1),drilling=CS.rpm>20&&CS.wob>1&&CS.flowIn>150;
+  let rop=drilling?.1*Math.pow(CS.wob/18,.9)*Math.sqrt(CS.rpm/110)*flowF:0;
+  if(CS.kick&&!CS.annular&&CS.hole-CS.start>=CS.kickAt)rop*=2.4;
+  CS.rop=rop;CS.hole+=rop*dt;
+  // torque
+  CS.tq=CS.rpm>1?1.4+.3*CS.wob+.004*CS.rpm+Math.sin(T*7)*.25+Math.sin(T*2.3)*.3:0;
+  if(CS.wob>32&&CS.rpm>1){CS.tq+=(CS.wob-32)*1.3;if(CS.tq>24&&CS.stall<=0){CS.stall=2.5;CS.msg('¡Atascamiento! El top drive se frenó por torque. Reduce el peso');CS.ev.push('stall')}}
+  // rotar sin bombas
+  if(CS.rpm>15&&CS.flowIn<100){CS.noPumpT+=dt;if(CS.noPumpT>1.5&&!CS.events.np){CS.events.np=1;CS.msg('Rotando sin circulación: riesgo de pegar la sarta');CS.ev.push('nopump')}}else{CS.noPumpT=0;CS.events.np=0}
+  // presión
+  const kickP=CS.annular?CS.sicp:0;CS.spp=2150*Math.pow(CS.flowIn/600,2)+(CS.annular&&CS.flowIn>20?CS.sidpp+600:0);
+  // patada
+  if(CS.kickEnabled&&!CS.kick&&CS.hole-CS.start>=CS.kickAt){CS.kick=true;CS.kickT=0;CS.ev.push('kick')}
+  if(CS.kick)CS.kickT+=dt;
+  const flowing=CS.kick&&!CS.annular&&!CS.rams;
+  if(flowing)CS.gain+=dt*.13;
+  if(CS.kick&&(CS.annular||CS.rams)){CS.sidpp=lerp(CS.sidpp,350,1-Math.exp(-dt*.6));CS.sicp=lerp(CS.sicp,520,1-Math.exp(-dt*.6));if(CS.flowIn>20&&!CS.events.pc){CS.events.pc=1;CS.ev.push('pumpclosed');CS.msg('¡Bombeando contra el pozo cerrado! Apaga las bombas')}}
+  CS.flowOut=(CS.flowIn>0?CS.flowIn/600*62:0)+(flowing?(CS.flowIn>0?14:22)+Math.sin(T*3)*1.5:0);
+  CS.pit=182+CS.gain+(CS.flowIn>0?-.6:0);
+  CS.hook=STRW-CS.wob+(v<-.05?4:v>.05?-2:0)+Math.sin(T*5)*.4;
+  // alarmas
+  CS.alarms=[];if(CS.gain>=2)CS.alarms.push('GANANCIA EN TANQUES +'+CS.gain.toFixed(1).replace('.',',')+' bbl');if(CS.flowOut>(CS.flowIn>0?CS.flowIn/600*62*1.15:6)&&CS.flowOut>8)CS.alarms.push('FLUJO DE RETORNO ALTO');if(CS.wob>32)CS.alarms.push('PESO SOBRE BROCA ALTO');
+  if(CS.alarms.length&&!CS.silenced)beepSnd(true);else beepSnd(false);if(!CS.alarms.length)CS.silenced=false;
+  if(CS.masterT>0)CS.masterT-=dt;
+  // historial
+  CS.histT+=dt;if(CS.histT>.5){CS.histT=0;CS.hist.push({wob:CS.wob,rop:CS.rop*3600/12,gain:CS.gain,spp:CS.spp});if(CS.hist.length>200)CS.hist.shift()}
+  // visual y sonido
+  consoleVisual();
+  CS.spin=(CS.spin||0)+CS.rpm/60*6.28*dt;RIG.stand.rotateY(CS.spin)
+  RIG.fx.spray=CS.kick&&!CS.annular&&CS.flowIn<20&&CS.bit<CS.hole-2?.3:0;
+  setAmbient({level:.55,inside:true,spm:CS.spm1+CS.spm2,rpm:CS.rpm});
+  // instrumentos
+  CAB.gauges.weight.set(CS.hook,CS.wob);CAB.gauges.spp.set(CS.spp);CAB.gauges.tq.set(CS.tq);
+  CAB.gauges.dp.set(CS.annular?CS.sidpp:0);CAB.gauges.cs.set(CS.annular?CS.sicp:0);CAB.gauges.acc.set(3000-(CS.annular?250:0)-(CS.rams?200:0));
+  const blink=(T*3|0)%2;
+  CAB.ctl.auto.capMat.emissive.setHex(CS.auto?0x2e9b45:0);CAB.ctl.master.capMat.emissive.setHex(CS.masterT>0&&blink?0xe0b21c:0);CAB.ctl.ann.capMat.emissive.setHex(CS.annular?0x9a1a10:0);CAB.ctl.rams.capMat.emissive.setHex(CS.rams?0x9a1a10:0);
+  if(CAB.lights.ann)CAB.lights.ann.material.emissive.setHex(CS.annular?0xff2a10:0x0a3a10);
+  MODE.alarm=!!CS.alarms.length;
+  CS.drawT-=dt;if(CS.drawT<=0){CS.drawT=.22;drawScreens()}
+}
+
+/* ---------- pantallas ---------- */
+const fmt=(v,d=0)=>v.toFixed(d).replace('.',',');
+function drawScreens(){
+  CAB.screens.forEach((s,i)=>{const g=s.g,W=640,Hh=400;g.fillStyle='#071019';g.fillRect(0,0,W,Hh);
+    const head=(t,c)=>{g.fillStyle=c||'#123044';g.fillRect(0,0,W,34);g.fillStyle='#cfe3ee';g.font='bold 20px Arial';g.textBaseline='middle';g.textAlign='left';g.fillText(t,14,18);g.textAlign='right';g.font='16px Arial';g.fillText(new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',second:'2-digit'}),W-12,18)};
+    if(i===0){head('PERFORACIÓN · PARÁMETROS');
+      sArc(g,120,135,78,CS.hook,0,400,'GANCHO','klb',null);sArc(g,320,135,78,CS.wob,0,40,'PESO SOBRE BROCA','klb',[16,20]);sArc(g,520,135,78,CS.rpm,0,200,'ROTARIA','RPM',[100,120]);
+      sArc(g,120,300,62,CS.tq,0,30,'TORQUE','klb·pie',null);
+      sCell(g,230,240,190,52,'PROF. BROCA',fmt(CS.bit,1)+' m');sCell(g,430,240,190,52,'PROF. POZO',fmt(CS.hole,1)+' m');
+      sCell(g,230,300,190,52,'ROP',fmt(CS.rop*3600/12,1)+' m/h');sCell(g,430,300,190,52,'AUTOPERF.',CS.auto?'ACTIVO '+fmt(CAB.ctl.wobSet.value)+' klb':'APAGADO',CS.auto?'#55b77d':null);
+      sCell(g,230,360,390,32,'SOBRE FONDO',CS.bit>=CS.hole-.05?'SÍ':'NO · '+fmt(CS.hole-CS.bit,1)+' m arriba')}
+    if(i===1){head('LODO Y BOMBAS',CS.alarms.some(a=>a.startsWith('GAN')||a.startsWith('FLU'))&&(T*2|0)%2?'#7a1a10':null);
+      sBar(g,20,50,140,'BOMBA 1',CS.spm1,120,'epm');sBar(g,170,50,140,'BOMBA 2',CS.spm2,120,'epm');
+      sCell(g,330,50,290,60,'CAUDAL',fmt(CS.flowIn)+' gpm');sCell(g,330,118,290,60,'PRESIÓN DE BOMBA',fmt(CS.spp)+' psi');
+      const fo=CS.flowOut,foBad=CS.alarms.some(a=>a.startsWith('FLU'));sCell(g,20,200,290,60,'FLUJO DE RETORNO',fmt(fo)+' %',foBad?'#e2573f':null);
+      const gb=CS.gain>=2;sCell(g,330,200,290,60,'VOLUMEN TANQUES',fmt(CS.pit,1)+' bbl',gb?'#e2573f':null);
+      sCell(g,20,270,600,70,'GANANCIA / PÉRDIDA',(CS.gain>=0?'+':'')+fmt(CS.gain,1)+' bbl',gb?'#e2573f':CS.gain>.5?'#e9c046':'#55b77d',40);
+      g.fillStyle='#8fb3c6';g.font='15px Arial';g.textAlign='left';g.fillText('Tanque de viaje: 23,1 bbl · Peso del lodo: 10,4 lpg',20,370)}
+    if(i===2){head('TENDENCIAS Y ALARMAS',CS.alarms.length&&(T*2|0)%2?'#7a1a10':null);
+      sTrend(g,20,46,600,80,CS.hist.map(h=>h.wob),0,40,'Peso sobre broca (klb)','#62a8d4');sTrend(g,20,134,600,80,CS.hist.map(h=>h.rop),0,90,'ROP (m/h)','#e9c046');sTrend(g,20,222,600,80,CS.hist.map(h=>h.gain),-1,10,'Ganancia (bbl)','#e2573f');
+      g.textAlign='left';g.font='bold 16px Arial';let y=326;
+      if(CS.alarms.length)CS.alarms.slice(0,2).forEach(a=>{g.fillStyle=(T*2|0)%2?'#ff5a40':'#ffb0a0';g.fillText('⚠ '+a,22,y);y+=22});
+      g.font='14px Arial';g.fillStyle='#8fb3c6';CS.msgs.slice(0,Math.max(0,3-Math.min(2,CS.alarms.length))).forEach(m=>{g.fillText('• '+m.t,22,y);y+=20});
+      if(CS.annular||CS.rams){g.fillStyle='#c0281c';g.fillRect(470,360,160,30);g.fillStyle='#fff';g.font='bold 15px Arial';g.textAlign='center';g.fillText('POZO CERRADO',550,375)}}
+    s.tx.needsUpdate=true})}
+function sCell(g,x,y,w,h,lbl,val,col,fs){g.fillStyle='#0e1d29';g.fillRect(x,y,w,h);g.strokeStyle='#1d3a4e';g.strokeRect(x+.5,y+.5,w-1,h-1);g.textAlign='left';g.textBaseline='top';g.fillStyle='#7f9fb2';g.font='12px Arial';g.fillText(lbl,x+8,y+6);g.fillStyle=col||'#e8f2f7';g.font=`bold ${fs||Math.min(26,h-24)}px Arial`;g.textBaseline='bottom';g.fillText(val,x+8,y+h-4);g.textBaseline='middle'}
+function sArc(g,cx,cy,r,v,min,max,lbl,unit,band){const a0=Math.PI*.75,a1=Math.PI*2.25,t=clamp((v-min)/(max-min),0,1);
+  g.lineCap='butt';g.lineWidth=14;g.strokeStyle='#1d3a4e';g.beginPath();g.arc(cx,cy,r,a0,a1);g.stroke();
+  if(band){g.strokeStyle='#2c6e47';g.beginPath();g.arc(cx,cy,r,a0+(band[0]-min)/(max-min)*(a1-a0),a0+(band[1]-min)/(max-min)*(a1-a0));g.stroke()}
+  const inb=!band||(v>=band[0]&&v<=band[1]);g.strokeStyle=v<=min+1e-3?'#1d3a4e':inb?'#62c0f0':'#e9c046';g.lineWidth=8;g.beginPath();g.arc(cx,cy,r,a0,a0+t*(a1-a0));g.stroke();
+  g.textAlign='center';g.fillStyle='#e8f2f7';g.font=`bold ${Math.round(r*.42)}px Arial`;g.fillText(fmt(v,v<100&&max<=40?1:0),cx,cy+2);g.font='12px Arial';g.fillStyle='#7f9fb2';g.fillText(unit,cx,cy+r*.38);g.fillText(lbl,cx,cy+r+4)}
+function sBar(g,x,y,h,lbl,v,max,unit){g.fillStyle='#0e1d29';g.fillRect(x,y,140,h);const t=clamp(v/max,0,1);g.fillStyle='#2f7d4a';g.fillRect(x+10,y+h-10-t*(h-50),30,t*(h-50));g.strokeStyle='#1d3a4e';g.strokeRect(x+10,y+40,30,h-50);
+  g.textAlign='left';g.fillStyle='#7f9fb2';g.font='12px Arial';g.fillText(lbl,x+8,y+14);g.fillStyle='#e8f2f7';g.font='bold 24px Arial';g.fillText(fmt(v),x+52,y+h/2+10);g.font='12px Arial';g.fillStyle='#7f9fb2';g.fillText(unit,x+52,y+h/2+32)}
+function sTrend(g,x,y,w,h,arr,min,max,lbl,col){g.fillStyle='#0e1d29';g.fillRect(x,y,w,h);g.strokeStyle='#15303f';g.lineWidth=1;for(let i=1;i<4;i++){g.beginPath();g.moveTo(x,y+h*i/4);g.lineTo(x+w,y+h*i/4);g.stroke()}
+  g.strokeStyle=col;g.lineWidth=2;g.beginPath();const n=200;arr.slice(-n).forEach((v,i,a)=>{const px=x+w-(a.length-1-i)/(n-1)*w,py=y+h-clamp((v-min)/(max-min),0,1)*h;i?g.lineTo(px,py):g.moveTo(px,py)});g.stroke();
+  g.textAlign='left';g.fillStyle='#8fb3c6';g.font='12px Arial';g.fillText(lbl,x+6,y+12);const last=arr[arr.length-1];if(last!=null){g.textAlign='right';g.fillStyle=col;g.font='bold 14px Arial';g.fillText(fmt(last,1),x+w-6,y+12)}}
+
+/* ---------- sentarse / levantarse ---------- */
+function consoleSeat(on){
+  CTLS.forEach(c=>{if(['dw','rpm','p1','p2','auto','wobSet','estop','master','ann','rams','hcr','sil'].includes(c.id))c.off=!on});
+  MODE.console=on;RIG.driller.g.visible=!on;
+  if(on){fpMode(CAB.eye,-Math.PI/2,-.42);camera.fov=70;camera.updateProjectionMatrix();station(V(CAB.chair.x+.05,F,CAB.chair.z),-Math.PI/2);RIG.string.visible=true;RIG.stand.visible=true;RIG.slips.visible=false;consoleVisual();drawScreens()}
+  else{beepSnd(false);camera.fov=55;camera.updateProjectionMatrix()}
+}
+/* ===================================================================== POZO EN CORTE PARA RECORRER (escala de profundidad comprimida) */
+const WELL={depth:160,scale:15,xs:3,layers:[
+  {y0:0,y1:-12,n:'Suelo y aluvión',c:'#7b6243',c2:'#5d4630'},
+  {y0:-12,y1:-40,n:'Arcillolita',c:'#6f7366',c2:'#585c50'},
+  {y0:-40,y1:-70,n:'Arenisca con agua',c:'#b49a6e',c2:'#97805a'},
+  {y0:-70,y1:-100,n:'Lutita',c:'#4f5155',c2:'#3c3e41'},
+  {y0:-100,y1:-125,n:'Caliza',c:'#a7a59b',c2:'#8c8a80'},
+  {y0:-125,y1:-162,n:'Arenisca productora (gas)',c:'#c2a35a',c2:'#9e8344'}],
+  stops:[]};
+const CAMTH=.94;
+function rockTex(c,c2,seed){return canvasTex(256,256,(g,w,h)=>{g.fillStyle=c;g.fillRect(0,0,w,h);for(let i=0;i<14;i++){g.fillStyle=c2;g.globalAlpha=.25+Math.random()*.3;g.fillRect(0,Math.random()*h,w,2+Math.random()*6)}g.globalAlpha=1;
+  for(let i=0;i<2600;i++){const v=Math.random();g.fillStyle=v<.5?'rgba(0,0,0,.18)':'rgba(255,255,255,.12)';const s=.8+Math.random()*2.2;g.fillRect(Math.random()*w,Math.random()*h,s,s)}})}
+function halfCyl(p,r,y0,y1,mat){const h=y0-y1,m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,36,1,true,CAMTH+Math.PI/2,Math.PI),mat);m.position.y=(y0+y1)/2;p.add(m);return m}
+function buildDeepWell(){
+  if(RIG.deep)return RIG.deep;
+  const g=new THREE.Group();g.position.y=-2.3;world.add(g);g.visible=false;RIG.deep=g;
+  const ds=THREE.DoubleSide;
+  // pared de roca detrás del corte, paredes laterales y fondo
+  WELL.layers.forEach((L,i)=>{const t=rockTex(L.c,L.c2);t.repeat.set(2,Math.max(1,(L.y0-L.y1)/6));const m=std(0xffffff,{map:t,roughness:1,metalness:0,side:ds});
+    const hh=L.y0-L.y1,mid=(L.y0+L.y1)/2;
+    const back=new THREE.Mesh(new THREE.PlaneGeometry(9,hh),m);back.position.set(-Math.sin(CAMTH)*.6,mid,-Math.cos(CAMTH)*.6);back.rotation.y=CAMTH;g.add(back);
+    for(const s of[-1,1]){const side=new THREE.Mesh(new THREE.PlaneGeometry(5,hh),m);const ax=Math.cos(CAMTH)*s*4.4,az=-Math.sin(CAMTH)*s*4.4;side.position.set(ax+Math.sin(CAMTH)*1.9,mid,az+Math.cos(CAMTH)*1.9);side.rotation.y=CAMTH+Math.PI/2;g.add(side)}
+    L.mat=m;
+    const lb=label3D(`${L.n} · ${Math.round(-L.y0*WELL.scale).toLocaleString('es-CO')}–${Math.round(-L.y1*WELL.scale).toLocaleString('es-CO')} m`,.42);lb.position.set(-Math.sin(CAMTH)*.5+Math.cos(CAMTH)*-1.6,L.y0-1.2,-Math.cos(CAMTH)*.5-Math.sin(CAMTH)*-1.6);g.add(lb)});
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(9,6),WELL.layers[5].mat);floor.rotation.x=-Math.PI/2;floor.position.y=-162;g.add(floor);
+  // hueco (pared del pozo) por tramos de formación
+  const holeR=y=>y>-10?.42:y>-45?.22:y>-105?.155:.108;
+  WELL.layers.forEach(L=>{const segs=[[L.y0,L.y1]];segs.forEach(([a,b])=>{const cuts=[-10,-45,-105].filter(c=>c<a&&c>b);let top=a;[...cuts,b].forEach(c=>{const rm=std(0xffffff,{map:L.mat.map,roughness:1,metalness:0,side:ds,color:new THREE.Color(.75,.75,.75)});halfCyl(g,holeR((top+c)/2),top,c,rm);top=c})})});
+  // revestimientos (casing) con cemento
+  const cem=std(0x9c9a92,{roughness:.95,metalness:0,side:ds}),stl=std(0x6d757b,{roughness:.4,metalness:.8,side:ds});
+  const csg=[{n:'Revestimiento conductor 30"',r:.38,y0:0,y1:-10,cTop:0},{n:'Revestimiento de superficie 13⅜"',r:.17,y0:0,y1:-45,cTop:0},{n:'Revestimiento intermedio 9⅝"',r:.122,y0:0,y1:-105,cTop:-60}];
+  csg.forEach((c,i)=>{const hr=holeR((c.y0+c.y1)/2+.1);halfCyl(g,c.r,c.y0,c.y1,stl);
+    if(hr>c.r+.005)halfCyl(g,hr-.004,Math.min(c.cTop,c.y0),c.y1,cem);
+    const shoe=new THREE.Mesh(new THREE.CylinderGeometry(c.r+.012,c.r+.012,.35,36,1,true,CAMTH+Math.PI/2,Math.PI),std(0x3a3f44,{side:ds,metalness:.7,roughness:.4}));shoe.position.y=c.y1+.17;g.add(shoe);
+    const l=label3D(c.n,.3);l.position.set(Math.cos(CAMTH)*.35,c.y1+1.6-i*.4,-Math.sin(CAMTH)*.35);g.add(l);
+    const l2=label3D('Zapata · '+Math.round(-c.y1*WELL.scale).toLocaleString('es-CO')+' m',.26);l2.position.set(Math.cos(CAMTH)*.35,c.y1+.5,-Math.sin(CAMTH)*.35);g.add(l2)});
+  // sarta de perforación
+  const sg=new THREE.Group();g.add(sg);RIG.deepString=sg;
+  const dp=std(0x7b858b,{roughness:.32,metalness:.85}),tj=std(0x575f64,{roughness:.28,metalness:.9}),dc=std(0x50585e,{roughness:.35,metalness:.85});
+  cyl(sg,.064,.064,140,dp,0,-70,0,14);for(let y=-3;y>-140;y-=3)cyl(sg,.084,.084,.3,tj,0,y,0,16);
+  cyl(sg,.07,.07,6,dc,0,-143,0,14);for(const y of[-140.5,-143,-145.5])cyl(sg,.085,.085,.5,tj,0,y,0,16);
+  cyl(sg,.083,.083,9,dc,0,-150.5,0,16);
+  const stab=y=>{const s=new THREE.Group();s.position.y=y;sg.add(s);for(let i=0;i<3;i++){const b=box(s,.03,.6,.05,std(0x9aa1a6,{metalness:.8,roughness:.3}),Math.cos(i*2.1)*.095,0,Math.sin(i*2.1)*.095);b.rotation.y=-i*2.1;b.rotation.x=.25}};stab(-149);stab(-154);
+  const mwd=cyl(sg,.083,.083,1.5,std(0xd0a020,{roughness:.4,metalness:.5}),0,-155.75,0,16);
+  const bit=new THREE.Group();bit.position.y=-157;sg.add(bit);RIG.deepBit=bit;
+  lathe(bit,[[.0,-.42],[.06,-.43],[.1,-.4],[.108,-.3],[.108,-.12],[.09,-.05],[.075,0]],std(0x3a3f44,{metalness:.8,roughness:.35}),0,28);
+  for(let i=0;i<6;i++){const a=i/6*Math.PI*2;const bl=box(bit,.03,.32,.05,std(0x2a2f34,{metalness:.7,roughness:.4}),Math.cos(a)*.09,-.25,Math.sin(a)*.09);bl.rotation.y=-a;
+    for(let k=0;k<4;k++){const ct=cyl(bit,.011,.011,.012,std(0x1a1a1a,{metalness:1,roughness:.15}),Math.cos(a)*.104,-.14-k*.07,Math.sin(a)*.104,10);ct.rotation.z=Math.PI/2;ct.rotation.y=-a}}
+  [['Tubería de perforación 5"',-30],['Tubería extrapesada (HWDP)',-142],['Lastrabarrenas (drill collars)',-151.5],['Estabilizador',-149],['Herramienta MWD',-155.75],['Broca PDC 8½"',-157.2]].forEach(([t,y])=>{const l=label3D(t,.26);l.position.set(Math.cos(CAMTH)*.32+Math.sin(CAMTH)*.15,y,-Math.sin(CAMTH)*.32+Math.cos(CAMTH)*.15);g.add(l)});
+  // circulación: recortes subiendo por el anular
+  const n=400,geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3));
+  const pts=new THREE.Points(geo,new THREE.PointsMaterial({color:0x8a7a62,size:.022,transparent:true,opacity:.9}));pts.frustumCulled=false;g.add(pts);RIG.cut=pts;
+  RIG.cutS=[...Array(n)].map(()=>({y:-158+Math.random()*156,a:CAMTH+Math.PI/2+Math.random()*Math.PI,r:0}));
+  const n2=120,g2=new THREE.BufferGeometry();g2.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n2*3),3));
+  const jets=new THREE.Points(g2,new THREE.PointsMaterial({color:0xb08a58,size:.03,transparent:true,opacity:.8}));jets.frustumCulled=false;g.add(jets);RIG.jets=jets;RIG.jetS=[...Array(n2)].map(()=>({p:V(0,-157.4,0),v:V(),t:Math.random()}));
+  // gas en la formación productora
+  const gg=new THREE.BufferGeometry(),ng=90;gg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(ng*3),3));const gas=new THREE.Points(gg,new THREE.PointsMaterial({color:0xe6edf0,size:.05,map:TEX.dot,transparent:true,depthWrite:false}));gas.frustumCulled=false;g.add(gas);RIG.gasP=gas;
+  RIG.gasS=[...Array(ng)].map(()=>{const s=-.3-Math.random()*1.6,u=(Math.random()-.5)*7;return{x:Math.cos(CAMTH+Math.PI)*-.0+(-Math.sin(CAMTH))*(.6+Math.random()*.1)+Math.cos(CAMTH)*u,z:-Math.cos(CAMTH)*.62-Math.sin(CAMTH)*u,y:-127-Math.random()*33,ph:Math.random()*6}});
+  g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false}if(o.isSprite)o.scale.x/=WELL.xs});
+  g.scale.set(WELL.xs,1,WELL.xs);
+  return g}
+function updateDeep(dt){
+  if(!RIG.deep||!RIG.deep.visible)return;
+  RIG.deepString.rotation.y+=dt*1.4;
+  const pos=RIG.cut.geometry.attributes.position,holeR=y=>y>-45?.17:y>-105?.122:.108;
+  RIG.cutS.forEach((s,i)=>{s.y+=dt*(1.2+Math.random()*.4);if(s.y>-1.5){s.y=-158}const r=(holeR(s.y)+.084)/2+Math.sin(i)*.012;pos.setXYZ(i,Math.sin(s.a)*r,s.y,Math.cos(s.a)*r)});pos.needsUpdate=true;
+  const jp=RIG.jets.geometry.attributes.position;RIG.jetS.forEach((s,i)=>{s.t-=dt;if(s.t<=0){s.p.set(0,-157.4,0);const a=CAMTH+Math.PI/2+Math.random()*Math.PI;s.v.set(Math.sin(a)*.4,-.1+Math.random()*.2,Math.cos(a)*.4);s.t=.4+Math.random()*.4}s.p.addScaledVector(s.v,dt);if(Math.hypot(s.p.x,s.p.z)>.1){s.v.set(s.v.x*.2,1.2,s.v.z*.2)}jp.setXYZ(i,s.p.x,s.p.y,s.p.z)});jp.needsUpdate=true;
+  const gp=RIG.gasP.geometry.attributes.position;RIG.gasS.forEach((s,i)=>gp.setXYZ(i,s.x,s.y+Math.sin(T*.8+s.ph)*.1,s.z));gp.needsUpdate=true;
+}
+/* ===================================================================== MANOS EN 1.ª PERSONA, MANDOS ARRASTRABLES, TECLADO, SONIDO */
+const PTR={x:0,y:0,has:false,hp:null,act:false};
+const KEYS=new Set();let LOCK=false;
+addEventListener('keydown',e=>{const t=e.target.tagName;if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA')return;if(!KEYS.has(e.code)&&MODE.onKey)MODE.onKey(e.code);KEYS.add(e.code);if(MODE.walk&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault()});
+addEventListener('keyup',e=>KEYS.delete(e.code));
+addEventListener('blur',()=>KEYS.clear());
+document.addEventListener('pointerlockchange',()=>{LOCK=!!renderer&&document.pointerLockElement===renderer.domElement;const c=$('#cross');if(c)c.classList.toggle('lock',LOCK)});
+document.addEventListener('mousemove',e=>{if(!LOCK)return;CAM.fg.yaw-=e.movementX*.0024;CAM.fg.pitch=clamp(CAM.fg.pitch-e.movementY*.0024,-1.35,1.25)});
+
+/* ---------- guante ---------- */
+function makeGlove(side){
+  const g=new THREE.Group();
+  const glove=std(0xe0b23a,{roughness:.82,metalness:0}),pad=std(0x2d2a26,{roughness:.9,metalness:0}),cuff=std(0x3b3a36,{roughness:.9});
+  const palm=new THREE.Mesh(new THREE.BoxGeometry(.084,.03,.092),glove);g.add(palm);
+  const back=new THREE.Mesh(new THREE.BoxGeometry(.078,.012,.07),pad);back.position.set(0,.019,.006);g.add(back);
+  for(let i=0;i<4;i++){const k=new THREE.Mesh(new THREE.BoxGeometry(.017,.012,.016),pad);k.position.set((-.03+i*.02)*side,.02,-.04);g.add(k)}
+  const cf=new THREE.Mesh(new THREE.CylinderGeometry(.047,.043,.075,14),cuff);cf.rotation.x=Math.PI/2;cf.position.z=.075;g.add(cf);
+  const fingers=[];const L=[[.04,.028],[.046,.031],[.043,.029],[.034,.024]];
+  for(let i=0;i<4;i++){const a=new THREE.Group();a.position.set((-.031+i*.0205)*side,0,-.046);g.add(a);
+    const s1=new THREE.Mesh(new THREE.CylinderGeometry(.0095,.0098,L[i][0],8),glove);s1.rotation.x=Math.PI/2;s1.position.z=-L[i][0]/2;a.add(s1);
+    const b=new THREE.Group();b.position.z=-L[i][0];a.add(b);
+    const s2=new THREE.Mesh(new THREE.CylinderGeometry(.0085,.0092,L[i][1],8),glove);s2.rotation.x=Math.PI/2;s2.position.z=-L[i][1]/2;b.add(s2);
+    const tip=new THREE.Mesh(new THREE.SphereGeometry(.0088,8,6),glove);tip.position.z=-L[i][1];b.add(tip);fingers.push({a,b})}
+  const th=new THREE.Group();th.position.set(-.043*side,-.006,-.004);th.rotation.set(0,.75*side,0);g.add(th);
+  const t1=new THREE.Mesh(new THREE.CylinderGeometry(.0115,.012,.036,8),glove);t1.rotation.x=Math.PI/2;t1.position.z=-.018;th.add(t1);
+  const tb=new THREE.Group();tb.position.z=-.036;th.add(tb);const t2=new THREE.Mesh(new THREE.CylinderGeometry(.0105,.011,.028,8),glove);t2.rotation.x=Math.PI/2;t2.position.z=-.014;tb.add(t2);
+  g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false}});
+  return{g,fingers,th,tb,curl:0,point:0,
+    set(c,pt){this.curl=c;this.point=pt;this.fingers.forEach((f,i)=>{const cc=i===0?c*(1-pt):c;f.a.rotation.x=-cc*1.25;f.b.rotation.x=-cc*1.35});this.th.rotation.x=-c*.5;this.tb.rotation.x=-c*.7}}}
+
+/* ---------- mano y brazo en pantalla (PC, celular, tableta) ---------- */
+let FPH=null;
+const ELBOW=V(.36,-.5,-.12);
+function initHands(){
+  const h=makeGlove(1);h.g.scale.setScalar(1.25);camera.add(h.g);
+  const suit=std(0xd8661c,{roughness:.86,metalness:0}),refl=std(0xd8dcd4,{emissive:0x4a4a4a,roughness:.3,metalness:.4});
+  const sl=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,16),suit);camera.add(sl);
+  const band=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,16),refl);camera.add(band);
+  [h.g,sl,band].forEach(o=>o.traverse(m=>{if(m.isMesh){m.castShadow=false;m.receiveShadow=false;m.frustumCulled=false}}));
+  FPH={h,sl,band,pos:V(.19,-.19,-.5),dir:V(0,0,-1),curl:.2,point:0,poke:0,show:false};
+}
+const _v1=V(0,0,0),_v2=V(0,0,0),_q=new THREE.Quaternion();
+function updateHands(dt){
+  if(!FPH)return;
+  const flat=!renderer.xr.isPresenting;const show=flat&&CAM.mode==='fp'&&!MODE.noHand;
+  FPH.show=show;FPH.h.g.visible=FPH.sl.visible=FPH.band.visible=show;
+  if(show){
+    camera.updateMatrixWorld(true);
+    let tgt=null,curl=.22,point=0;
+    if(DRAG){tgt=camera.worldToLocal(ctlGrip(DRAG.ctl));curl=.95}
+    else if(PTR.has||LOCK){
+      const px=LOCK?null:PTR;let rc;
+      if(LOCK){const r=renderer.domElement.getBoundingClientRect();rc=rayFromScreen(r.left+r.width/2,r.top+r.height/2)}else rc=rayFromScreen(px.x,px.y);
+      const d=PTR.hp?PTR.hp.distanceTo(rc.ray.origin):99;
+      if(PTR.hp&&d<1.15){tgt=camera.worldToLocal(PTR.hp.clone().addScaledVector(rc.ray.direction,-.075));point=PTR.act?1:.3;curl=PTR.act?.75:.35}
+      else tgt=camera.worldToLocal(rc.ray.at(.62,_v1));}
+    else tgt=V(.19,-.19,-.5);
+    tgt.x=clamp(tgt.x,-.22,.46);tgt.y=clamp(tgt.y,-.5,.14);tgt.z=clamp(tgt.z,-1.0,-.26);
+    if(FPH.poke>0){FPH.poke=Math.max(0,FPH.poke-dt*3);tgt.z-=Math.sin(FPH.poke*Math.PI)*.05;point=1;curl=.8}
+    const k=1-Math.exp(-dt*14);FPH.pos.lerp(tgt,k);FPH.curl=lerp(FPH.curl,curl,k);FPH.point=lerp(FPH.point,point,k);
+    const dir=_v2.copy(FPH.pos).sub(ELBOW).normalize();FPH.dir.lerp(dir,k).normalize();
+    FPH.h.g.position.copy(FPH.pos);FPH.h.g.quaternion.setFromUnitVectors(V(0,0,-1),FPH.dir);FPH.h.g.rotateZ(.35);
+    FPH.h.set(FPH.curl,FPH.point);
+    const wrist=FPH.pos.clone().addScaledVector(FPH.dir,-.12);
+    orient(FPH.sl,wrist,ELBOW.clone().add(V(.08,-.16,.02)),.042,.042);
+    const b0=wrist.clone().lerp(ELBOW,.3),b1=wrist.clone().lerp(ELBOW,.38);orient(FPH.band,b0,b1,.0445,.0445);
+  }
+  updateXRDrag(dt);
+  const k=.5+.5*Math.sin(T*6);for(const c of CTLS){if(c.glow||c.glowWas){const a=c.glow?.15+.45*k:0;c.obj.traverse(m=>{if(m.isMesh&&m.material.emissive&&m.material!==c.capMat)m.material.emissive.setRGB(.94*a,.62*a,.1*a)});c.glowWas=c.glow}}
+}
+
+/* ---------- mandos (palancas, joysticks, perillas, botones) ---------- */
+const CTLS=[];let DRAG=null;const XDRAG=[null,null];
+function addCtl(o){o=Object.assign({min:0,max:1,value:0,type:'lever',axis:'z',ang:[.5,-.5],drag:'y',sens:1,grip:V(0,.12,0),off:true},o);
+  o.obj.traverse(m=>{if(m.isMesh&&m.material&&m.material.isMeshStandardMaterial)m.material=m.material.clone()});
+  o.obj.userData.ctl=o;if(o.hit)proxy(o.obj,o.hit,o.hitPos||o.grip);CTLS.push(o);if(o.type!=='button')setCtl(o,o.value,true);return o}
+function setCtl(c,v,silent){c.value=clamp(v,c.min,c.max);if(c.type!=='button'){const t=(c.value-c.min)/(c.max-c.min);c.obj.rotation[c.axis]=lerp(c.ang[0],c.ang[1],t)}if(!silent&&c.onChange)c.onChange(c.value)}
+function ctlHit(rc){const objs=CTLS.filter(c=>!c.off&&visibleDeep(c.obj)).map(c=>c.obj);if(!objs.length)return null;const h=rc.intersectObjects(objs,true)[0];if(!h)return null;let o=h.object;while(o&&!o.userData.ctl)o=o.parent;return o?{ctl:o.userData.ctl,point:h.point}:null}
+function ctlGrip(c){c.obj.updateMatrixWorld(true);return c.obj.localToWorld(c.grip.clone())}
+function pressBtn(c){if(c.cap){const y0=c.cap.position.y;tween(.16,p=>c.cap.position.y=y0-Math.sin(p*Math.PI)*.008)}if(FPH)FPH.poke=1;clickSnd();if(c.onPress)c.onPress();dispatch('ctl:'+c.id)}
+function releaseCtl(c){if(c.spring!=null){const v0=c.value;tween(.25,p=>setCtl(c,lerp(v0,c.spring,p)))}}
+function ctlDown(x,y,id){const ch=ctlHit(rayFromScreen(x,y));if(!ch)return false;const c=ch.ctl;if(c.type==='button'){pressBtn(c);return true}
+  DRAG={ctl:c,x,y,v0:c.value,id};return true}
+function ctlMove(x,y){if(!DRAG)return;const c=DRAG.ctl;const d=c.drag==='x'?(x-DRAG.x):-(y-DRAG.y);setCtl(c,DRAG.v0+d/180*c.sens*(c.max-c.min))}
+function ctlUp(){if(!DRAG)return;const c=DRAG.ctl;DRAG=null;releaseCtl(c)}
+/* VR: agarrar por cercanía o con el rayo, y mover con el control */
+function xrGrab(i,ctrl,rc){
+  const gp=V(0,0,0);ctrl.getWorldPosition(gp);let best=null,bd=.16;
+  for(const c of CTLS){if(c.off||!visibleDeep(c.obj))continue;const d=ctlGrip(c).distanceTo(gp);if(d<bd){bd=d;best=c}}
+  if(!best){const h=ctlHit(rc);if(h)best=h.ctl}
+  if(!best)return false;if(best.type==='button'){pressBtn(best);return true}
+  XDRAG[i]={ctl:best,ctrl,p0:gp.clone(),v0:best.value};return true}
+function xrRelease(i){const d=XDRAG[i];if(!d)return;XDRAG[i]=null;releaseCtl(d.ctl)}
+function updateXRDrag(){for(const d of XDRAG){if(!d)continue;const p=V(0,0,0);d.ctrl.getWorldPosition(p);const c=d.ctl;const dir=c.dirW||V(0,1,0);
+  setCtl(c,d.v0+p.sub(d.p0).dot(dir)/.14*c.sens*(c.max-c.min)*.5)}}
+
+/* ---------- joystick táctil y botón Usar ---------- */
+const JOY={x:0,y:0,on:false};
+function setupTouchJoy(){
+  const j=$('#joy'),k=$('#joyKnob');if(!j||j.dataset.ok)return;j.dataset.ok=1;let id=null,cx=0,cy=0;
+  const mv=e=>{const dx=e.clientX-cx,dy=e.clientY-cy,r=Math.min(1,Math.hypot(dx,dy)/48),a=Math.atan2(dy,dx);JOY.x=Math.cos(a)*r;JOY.y=-Math.sin(a)*r;k.style.transform=`translate(${JOY.x*40}px,${-JOY.y*40}px)`};
+  j.addEventListener('pointerdown',e=>{id=e.pointerId;j.setPointerCapture(id);const r=j.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;JOY.on=true;mv(e);e.stopPropagation()});
+  j.addEventListener('pointermove',e=>{if(e.pointerId===id)mv(e)});
+  const end=e=>{if(e.pointerId!==id)return;id=null;JOY.x=JOY.y=0;JOY.on=false;k.style.transform=''};j.addEventListener('pointerup',end);j.addEventListener('pointercancel',end);
+  $('#useBtn').addEventListener('click',()=>{if(MODE.use)MODE.use()});
+}
+
+/* ---------- sonido ambiente del taladro (generado) ---------- */
+const SND={ctx:null,on:false};
+function startAmbient(){try{
+  if(!SND.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return;SND.ctx=new C()}
+  const a=SND.ctx;if(a.state==='suspended')a.resume();if(SND.on)return;SND.on=true;
+  const len=a.sampleRate*2,buf=a.createBuffer(1,len,a.sampleRate),d=buf.getChannelData(0);let last=0;for(let i=0;i<len;i++){const w=Math.random()*2-1;last=(last+.02*w)/1.02;d[i]=last*3.2}
+  const src=a.createBufferSource();src.buffer=buf;src.loop=true;const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=320;
+  const eng=a.createGain();eng.gain.value=.0;src.connect(lp);lp.connect(eng);
+  const hum=a.createOscillator();hum.type='sawtooth';hum.frequency.value=48;const hlp=a.createBiquadFilter();hlp.type='lowpass';hlp.frequency.value=140;const hg=a.createGain();hg.gain.value=.0;hum.connect(hlp);hlp.connect(hg);
+  const pump=a.createOscillator();pump.type='sine';pump.frequency.value=38;const pg=a.createGain();pg.gain.value=0;const lfo=a.createOscillator();lfo.frequency.value=0;const lg=a.createGain();lg.gain.value=0;lfo.connect(lg);lg.connect(pg.gain);pump.connect(pg);
+  const master=a.createGain();master.gain.value=0;eng.connect(master);hg.connect(master);pg.connect(master);master.connect(a.destination);
+  src.start();hum.start();pump.start();lfo.start();
+  Object.assign(SND,{src,eng,hg,pg,lfo,lg,master,hum});setAmbient({});
+}catch(e){}}
+function setAmbient(o){if(!SND.on)return;const a=SND.ctx,t=a.currentTime;o=Object.assign({level:.5,inside:false,spm:0,rpm:0},o);
+  const lv=NAR.muted?0:o.level*(o.inside?.45:1);SND.master.gain.setTargetAtTime(lv*.5,t,.4);SND.eng.gain.setTargetAtTime(.55,t,.4);SND.hg.gain.setTargetAtTime(.08+o.rpm/180*.12,t,.4);SND.hum.frequency.setTargetAtTime(42+o.rpm/180*30,t,.4);
+  const f=o.spm/60;SND.lfo.frequency.setTargetAtTime(Math.max(.01,f*3),t,.3);SND.lg.gain.setTargetAtTime(o.spm>0?.12:0,t,.3);SND.pg.gain.setTargetAtTime(o.spm>0?.06:0,t,.3)}
+function stopAmbient(){if(!SND.on)return;try{SND.master.gain.setTargetAtTime(0,SND.ctx.currentTime,.2);['src','hum','pump','lfo'].forEach(k=>{try{SND[k]&&SND[k].stop(SND.ctx.currentTime+.6)}catch(e){}})}catch(e){}SND.on=false}
+function clickSnd(){try{if(!SND.ctx)return;const a=SND.ctx,o=a.createOscillator(),g=a.createGain();o.frequency.value=1800;g.gain.value=.05;o.connect(g);g.connect(a.destination);o.start();g.gain.setTargetAtTime(0,a.currentTime,.015);o.stop(a.currentTime+.08)}catch(e){}}
+function beepSnd(on){try{if(!SND.ctx)return;const a=SND.ctx;if(on&&!SND.beep){const o=a.createOscillator(),g=a.createGain(),l=a.createOscillator(),lg=a.createGain();o.type='square';o.frequency.value=880;l.frequency.value=2.5;lg.gain.value=.035;l.connect(lg);lg.connect(g.gain);g.gain.value=.035;o.connect(g);g.connect(a.destination);o.start();l.start();SND.beep={o,l,g}}
+  else if(!on&&SND.beep){SND.beep.g.gain.setTargetAtTime(0,a.currentTime,.05);SND.beep.o.stop(a.currentTime+.3);SND.beep.l.stop(a.currentTime+.3);SND.beep=null}}catch(e){}}
 /* ===================================================================== GUIONES DE LOS MÓDULOS */
 const head=(eb,t,b='')=>`<div class="eyebrow">${eb}</div><h3>${t}</h3>${b}`;
 const stepsHTML=(list,cur)=>`<ul class="steps">${list.map((s,i)=>`<li class="${i<cur?'done':i===cur?'now':''}">${s}</li>`).join('')}</ul>`;
@@ -1333,6 +1795,7 @@ function setNight(on){NIGHT=on;const u=sky.material.uniforms;u.top.value.set(on?
   if(on&&!nightLights.length){[[0,F+9,6],[10,9,-6],[-6,9,14],[0,F+20,-2]].forEach(p=>{const l=new THREE.PointLight(0xfff0d0,1.4,55,1.6);l.position.set(...p);scene.add(l);nightLights.push(l)})}
   nightLights.forEach(l=>l.visible=on);RIG.lamps.forEach(l=>l.material.emissiveIntensity=on?3:1.3)}
 function resetScene(){
+  exploreCleanup();if(MODE.console)consoleSeat(false);consoleReset();CS.run=false;MODE.noHand=false;MODE.onKey=null;MODE.use=null;camera.fov=55;camera.updateProjectionMatrix();
   restoreHome();clearTemp();setNight(false);
   RIG.mast.rotation.x=0;setBlock(10);
   for(const k in RIG.parts)RIG.parts[k].visible=true;
@@ -1792,7 +2255,7 @@ async function doSeq(steps,st,o){
       if(steps.some(x=>x.k===v)||(o.others||[]).includes(v)){if(!o.guided)st.errs++;draw(`<div class="fb bad">${s.h}</div>`);await sayW('Ese paso no va todavía. '+s.h);continue}}
     task('');if(s.run)await s.run()}}
 function grp(pos,parent){const g=temp(new THREE.Group());g.position.copy(pos);(parent||world).add(g);return g}
-function bucket(pos,col,lbl){const g=grp(pos);cyl(g,.16,.13,.34,std(col,{roughness:.6}),0,.17,0,18);cyl(g,.15,.15,.02,MAT.mud,0,.3,0,18);box(g,.04,.32,.08,MAT.wood,.06,.42,0).rotation.z=-.3;proxy(g,.5,V(0,.25,0));if(lbl){const l=label3D(lbl,.4);l.position.y=.75;g.add(l)}return g}
+function bucket(pos,col,lbl){const g=grp(pos);cyl(g,.16,.13,.34,std(col,{roughness:.6}),0,.17,0,18);cyl(g,.15,.15,.02,MAT.mud,0,.3,0,18);box(g,.04,.32,.08,MAT.wood,.06,.42,0).rotation.z=-.3;proxy(g,.5,V(0,.25,0));if(lbl){const l=label3D(lbl,.2);l.position.y=.62;g.add(l)}return g}
 async function decide(eb,title,body,opts,st,good){
   const v=await ask(head(eb,title,body),opts);const o=opts.find(x=>x.v===v);
   if(v===good){say(o.f||'Correcto.');await ask(head(eb,title,body+`<div class="fb ok">${o.f||'Correcto.'}</div>`),[{t:'Continuar',v:'n'}]);return true}
@@ -2013,74 +2476,84 @@ async function modLodo(opt){
   await result(pts(st),`Peso 10,4 lpg · Viscosidad 45 s/cuarto. ${st.errs} error${st.errs===1?'':'es'}.`)}
 
 /* ===================================================================== PERFORADOR: CONSOLA */
+function glowCtl(ids){CTLS.forEach(c=>{c.glow=ids.includes(c.id)})}
+function untilC(fn){return w(new Promise(res=>{MODE.waitC=MODE.waitC||[];MODE.waitC.push({fn,res})}))}
 async function modConsola(opt){
-  const how=opt&&opt.practice?'practice':await startChoice('Consola del perforador','El instructor te explica los controles y lecturas de la consola. Luego perforas una unión y respondes a lo que pase en el pozo.');
-  const st={errs:0,hints:0};
-  RIG.driller.g.visible=false;RIG.string.visible=false;RIG.stand.visible=true;
-  const TOP0=F+1.0+9;const setDepth=d=>{setBlock(TOP0-d-.25-F+EOFF);placeStand()};setDepth(0);
-  insAt(V(-7.6,F,-.9));station(V(-7.0,F,-2.4),-Math.PI/2);
+  const how=opt&&opt.practice?'practice':await startChoice('Consola del perforador','El instructor te muestra la cabina: el joystick del malacate, la palanca de la rotaria, las bombas, las pantallas, el indicador de peso y el panel de control de pozo. Luego perforas y respondes a lo que pase en el pozo.');
+  const st={errs:0,hints:0};const pen=new Set();
+  consoleReset({kickEnabled:false});tripSetup();RIG.string.visible=true;RIG.slips.visible=false;consoleVisual();startAmbient();
+  $('#cams').hidden=true;insAt(V(-8.55,F,-1.25));RIG.ins.face=CAB.eye;
+  MODE.tick=dt=>{consoleSim(dt);if(MODE.waitC)MODE.waitC=MODE.waitC.filter(x=>{if(x.fn()){x.res();return false}return true})};
   if(how==='demo'){
-    lookFrom([-1,F+3.5,3.5],[-6.6,F+1.3,-2.4]);RIG.ins.point=V(-7.2,F+1.2,-2.4);
-    panel(head('Explicación','La consola del perforador','<ul class="steps"><li class="done"><b>Peso sobre la broca</b>: cuánto peso de la sarta se apoya en la broca (klb).</li><li class="done"><b>Rotaria</b>: velocidad de giro del top drive (RPM).</li><li class="done"><b>Bombas</b>: caudal de lodo y presión del tubo vertical.</li><li class="done"><b>Tanques y flujo de retorno</b>: las señales de una patada.</li></ul>'));
-    await sayW('Esta es la cabina del perforador. Desde aquí controlas el peso sobre la broca soltando el freno del malacate, la velocidad de la rotaria y las bombas de lodo.');
-    await sayW('Para perforar: primero enciendes las bombas, luego la rotaria, y después bajas hasta poner el peso del programa sobre la broca. Nunca rotes sin bombas.');
-    await sayW('Mientras perforas, vigila los tanques y el flujo de retorno. Si suben sin razón, o la broca de pronto avanza mucho más rápido, puede venir una patada. Ahí detienes todo y haces flow check.');RIG.ins.point=null}
-  $('#cams').hidden=true;await w(fade(()=>{fpMode(V(-7.2,F+1.8,-2.4),-Math.PI/2,-.2)}));
-  const S={pump:false,rpm:0,wob:0,d:0,gain:0,flow:0,kick:false,kickT:0,phase:'drill',step:0,warnRot:false,warnWob:false,ret:100,spin:0};
-  const PROC=[['stop','Detener la perforación: rotaria y peso a cero'],['up','Levantar la sarta del fondo'],['pumpoff','Apagar las bombas'],['flow','Observar el flujo (flow check)'],['close','Cerrar la preventora anular'],['record','Registrar SIDPP, SICP y ganancia']];
-  const DIST=[['more','Seguir perforando para terminar la unión'],['flowup','Aumentar el caudal de las bombas']];
-  const cls=(v,lo,hi)=>v<lo||v>hi?'warn':'ok';const PLIST=shuffle(PROC.concat(DIST)).map(([v,t])=>({t,v}));
-  const readout=()=>`<div class="ind" id="cons">
-    <div class="${S.pump?'ok':'warn'}"><small>Bombas</small><b>${S.pump?'600 gpm':'Apagadas'}</b></div>
-    <div class="${S.phase==='drill'?cls(S.rpm,100,120):'ok'}"><small>Rotaria</small><b>${S.rpm} RPM</b></div>
-    <div class="${S.phase==='drill'?cls(S.wob,16,20):'ok'}"><small>Peso sobre broca</small><b>${S.wob} klb</b></div>
-    <div class="ok"><small>Peso en gancho</small><b>${180-S.wob} klb</b></div>
-    <div class="${S.pump?'ok':'warn'}"><small>Presión de bomba</small><b>${S.pump?2150:0} psi</b></div>
-    <div class="${S.ret>105?'bad':'ok'}"><small>Flujo de retorno</small><b>${S.pump||S.kick?Math.round(S.ret):0} %</b></div>
-    <div class="${S.gain>1?'bad':'ok'}"><small>Tanques</small><b>${(182+S.gain).toFixed(1).replace('.',',')} bbl</b></div>
-    <div class="ok"><small>Unión perforada</small><b>${S.d.toFixed(1).replace('.',',')} / 9,0 m</b></div></div>`;
-  const draw=fb=>{const c=[{t:S.pump?'Apagar bombas':'Encender bombas',v:'pump'},{t:'Rotaria −10',v:'rpm-'},{t:'Rotaria +10',v:'rpm+'},{t:'Peso −2',v:'wob-'},{t:'Peso +2',v:'wob+'}];
-    const proc=S.phase!=='drill'||S.kick?PLIST:[];
-    panel(head('Consola del perforador',S.phase==='drill'?'Perfora la unión':'Responde al pozo',meterHTML(st)+readout()+(S.phase==='drill'&&!S.kick?'<p class="muted" style="font-size:13px">Programa: bombas encendidas, rotaria 100–120 RPM, peso sobre broca 16–20 klb.</p>':'')+(fb||'')+
-      `<div class="row">${c.map(x=>`<button class="btn sm" type="button" data-in="${x.v}">${x.t}</button>`).join('')}</div>`+(proc.length?`<div class="eyebrow" style="margin-top:14px">Acciones de control</div>${optsHTML(proc)}`:'')));
-    setButtons(c.concat(proc))};
-  let fbMsg='';draw();task('Enciende bombas, rotaria y pon peso sobre la broca');
-  if(how==='demo')await sayW('Empieza: enciende las bombas, sube la rotaria a ciento diez y pon dieciocho mil libras sobre la broca.');
-  let kickStart=0,elapsed=0,lastDraw=0;
-  MODE.tick=dt=>{elapsed+=dt;
-    const inBand=S.pump&&S.rpm>=100&&S.rpm<=120&&S.wob>=16&&S.wob<=20;
-    if(S.phase==='drill'){
-      if(S.rpm>0&&!S.pump&&!S.warnRot){S.warnRot=true;st.errs++;fbMsg='<div class="fb bad">Rotar sin bombas puede pegar la sarta: primero las bombas.</div>';say('Cuidado: nunca rotes sin bombas.');draw(fbMsg)}
-      if(S.wob>26&&!S.warnWob){S.warnWob=true;st.errs++;fbMsg='<div class="fb bad">Demasiado peso: se daña la broca y se pandea la sarta.</div>';say('Demasiado peso sobre la broca.');draw(fbMsg)}
-      if(S.wob<=26)S.warnWob=false;if(S.pump||S.rpm===0)S.warnRot=false;
-      const rate=(S.kick?2.5:1)*(inBand?.32:(S.pump&&S.rpm>0&&S.wob>0?.12:0));S.d=Math.min(9,S.d+rate*dt);setDepth(S.d);
-      if(!S.kick&&S.d>=5.2){S.kick=true;kickStart=elapsed;draw()}
-      if(S.d>=9&&!S.kick)dispatch('JOINT')}
-    if(S.kick&&S.step<5){S.gain+=dt*(S.step>=4?0:.16);S.ret=S.pump?100+Math.min(25,S.gain*4):(S.step>=3?40+S.gain*5:0);if(S.gain>1.2)MODE.alarm=true;
-      if(S.step===0&&elapsed-kickStart>22&&!S.late){S.late=true;st.errs++;fbMsg='<div class="fb bad">Reacción tardía: los tanques llevan rato subiendo.</div>';draw(fbMsg);say('Estás reaccionando tarde. Los tanques están subiendo.')}}
-    if(S.rpm>0){S.spin+=dt*S.rpm/60*6.28;RIG.stand.rotateY(S.spin)}
-    if(elapsed-lastDraw>.25){lastDraw=elapsed;const e=$('#cons');if(e)e.outerHTML=readout()}};
-  for(;;){const v=await w(waitInput());
-    if(v==='pump'){S.pump=!S.pump;if(!S.pump&&S.rpm>0&&S.phase==='drill'&&!S.kick){st.errs++;say('Apagaste las bombas con la rotaria girando.')}if(S.kick&&S.step===2&&!S.pump){S.step=3;say('Bombas apagadas.')}draw();continue}
-    if(v==='rpm-'||v==='rpm+'){S.rpm=clamp(S.rpm+(v==='rpm+'?10:-10),0,180);draw();continue}
-    if(v==='wob-'||v==='wob+'){S.wob=clamp(S.wob+(v==='wob+'?2:-2),0,40);draw();continue}
-    if(v==='JOINT'){continue}
-    const order=['stop','up','pumpoff','flow','close','record'];
-    if(order.includes(v)||v==='more'||v==='flowup'){
-      if(!S.kick){draw('<div class="fb info">Por ahora la perforación va normal. Esa acción no hace falta todavía.</div>');continue}
-      if(v==='more'||v==='flowup'){st.errs++;draw('<div class="fb bad">Con señales de patada no se sigue perforando ni se aumenta el caudal: se detiene y se verifica.</div>');await sayW('No. Con señales de patada, se detiene y se verifica el pozo.');continue}
-      const exp=order[S.step];
-      if(v!==exp){st.errs++;const H={stop:'Primero detén la perforación: rotaria y peso a cero.',up:'Levanta la sarta del fondo hasta tener la unión sobre la mesa.',pumpoff:'Apaga las bombas para observar el flujo.',flow:'Haz el flow check: observa si el pozo fluye con las bombas apagadas.',close:'El pozo fluye: ciérralo con la preventora anular.',record:'Registra las presiones de cierre y la ganancia.'};draw(`<div class="fb bad">${H[exp]}</div>`);await sayW('Ese no es el paso. '+H[exp]);continue}
-      if(v==='stop'){S.rpm=0;S.wob=0;S.phase='well';say('Perforación detenida.')}
-      if(v==='up'){const d0=S.d;await w(tweenP(1.8,p=>{setDepth(d0-p*3)}));S.d=d0-3;say('Sarta fuera del fondo.')}
-      if(v==='pumpoff'){S.pump=false;say('Bombas apagadas.')}
-      if(v==='flow'){RIG.fx.spray=.4;await sayW('Flow check: con las bombas apagadas, el pozo sigue fluyendo. Es una patada.')}
-      if(v==='close'){await w(tweenP(1.2,p=>RIG.annular.material.color.setRGB(lerp(.43,.03,p),lerp(.02,.2,p),lerp(.012,.04,p))));RIG.fx.spray=0;MODE.alarm=false;say('Preventora anular cerrada.')}
-      if(v==='record'){S.step=6;draw('<div class="fb ok">SIDPP 350 psi · SICP 520 psi · Ganancia '+S.gain.toFixed(1).replace('.',',')+' bbl.</div>');await sayW('Registraste las presiones de cierre y la ganancia. Ahora informas al supervisor.');break}
-      S.step++;draw();continue}}
-  MODE.tick=null;task('');
-  await sayW(`Pozo cerrado con una ganancia de ${S.gain.toFixed(1).replace('.',',')} barriles. Mientras más rápido reacciones, menor la ganancia y más fácil el control.`);
-  await result(pts(st),`Ganancia al cierre: ${S.gain.toFixed(1).replace('.',',')} bbl. ${st.errs} error${st.errs===1?'':'es'}.`)}
+    CS.run=true;drawScreens();
+    const shot=async(pos,tgt,ids,t)=>{glowCtl(ids||[]);RIG.ins.point=tgt;w(cineTo(pos,tgt,1.8,false));await sayW(t)};
+    panel(head('Explicación','La cabina del perforador','<p>Sillón con mandos en los apoyabrazos, tres pantallas de perforación, instrumentos analógicos de respaldo y el panel de control de pozo.</p>')+'<button class="btn" type="button" data-in="skip">Saltar explicación</button>');
+    const sk=waitInput();
+    const tour=(async()=>{
+      await shot(V(-8.9,F+1.9,-1.2),V(-7.2,F+1.1,-2.65),[],'Esta es la cabina del perforador. Desde este sillón se controla toda la perforación. Mira por el ventanal: tienes vista directa a la mesa rotaria y al mástil.');
+      const g=k=>ctlGrip(CAB.ctl[k]);
+      await shot(g('dw').clone().add(V(-.55,.45,-.35)),g('dw'),['dw'],'El joystick del apoyabrazos izquierdo maneja el malacate. Hacia adelante baja la sarta y hacia atrás la sube. Si lo sueltas vuelve al centro y el freno sostiene toda la carga.');
+      await shot(g('auto').clone().add(V(-.5,.42,-.3)),g('auto'),['auto','wobSet'],'El botón verde AUTO activa el autoperforador: baja la sarta solo, manteniendo el peso sobre la broca que marques con la perilla.');
+      await shot(g('rpm').clone().add(V(-.55,.45,.35)),g('rpm'),['rpm'],'En el apoyabrazos derecho, la palanca azul controla la rotaria del top drive, en revoluciones por minuto.');
+      await shot(g('p1').clone().add(V(-.5,.45,.4)),g('p1'),['p1','p2'],'Las perillas rojas controlan las dos bombas de lodo, en emboladas por minuto. Y el botón rojo grande es la parada de emergencia.');
+      await shot(V(-7.75,F+1.25,-2.65),V(-6.78,F+1.1,-2.65),[],'Las tres pantallas: a la izquierda los parámetros de perforación, en el centro el lodo y las bombas, donde ves los tanques y el flujo de retorno, y a la derecha las tendencias y alarmas.');
+      await shot(V(-7.5,F+1.6,-2.65),V(-5.95,F+2.3,-2.65),[],'Arriba, sobre el ventanal, está el indicador de peso analógico. La aguja negra marca el peso en el gancho y la roja el peso sobre la broca. Si las pantallas fallan, este instrumento sigue funcionando.');
+      await shot(V(-8.1,F+1.6,-2.0),CAB.bopG.localToWorld(V(0,1,.1)),['master','ann','rams','hcr'],'A tu derecha, el panel de control de pozo. Para cerrar una preventora se presiona MAESTRO y luego la función, así se evita un cierre accidental. Sus manómetros muestran la presión de la tubería y del revestimiento con el pozo cerrado.');
+      RIG.ins.point=null;glowCtl([])})();
+    const rr=await w(Promise.race([tour.then(()=>'done'),sk]));glowCtl([]);RIG.ins.point=null;
+    if(rr==='skip'){openModule(MODE.id,{practice:true});return}
+    await sayW('Ahora te sientas tú. Vamos a perforar.')}
+  // ---------- práctica ----------
+  consoleReset({kickEnabled:false});
+  await w(fade(()=>{consoleSeat(true);RIG.ins.face=CAB.eye}));
+  const STEPS=['Encender las bombas (≈ 85 epm cada una)','Arrancar la rotaria a 100–120 RPM','Bajar la sarta y tocar fondo despacio','Poner 16–20 klb sobre la broca','Perforar vigilando tanques y flujo'];
+  let cur=0;const T0={};
+  const dr=(fb='')=>panel(head('Consola del perforador',cur<STEPS.length?STEPS[cur]:'¡Atención al pozo!',meterHTML(st)+stepsHTML(STEPS,cur)+fb+
+    `<p class="muted" style="font-size:13px">Agarra los mandos con la mano y arrástralos. En el computador también puedes usar ↑ ↓ para el malacate. Gira la vista arrastrando fuera de los mandos.</p><button class="btn sm ghost" type="button" data-in="HINT">Pista</button>`));
+  const HINT={0:'Gira las perillas rojas del apoyabrazos derecho: arrástralas hacia la derecha hasta unas ochenta y cinco emboladas cada una.',1:'Empuja la palanca azul hacia adelante hasta que la rotaria marque entre cien y ciento veinte.',2:'Empuja el joystick izquierdo hacia adelante para bajar. Cuando falte poco para el fondo, empuja suave.',3:'Sigue bajando poco a poco hasta que el peso sobre la broca marque entre dieciséis y veinte, o presiona AUTO.',4:'Vigila la pantalla central: volumen de tanques y flujo de retorno.'};
+  const GL={0:['p1','p2'],1:['rpm'],2:['dw'],3:['dw','auto','wobSet'],4:[]};
+  // eventos de la simulación → errores
+  const evLoop=()=>{while(CS.ev.length){const e=CS.ev.shift();const P={impact:'Golpeaste el fondo con la broca. Al acercarte al fondo baja despacio.',crown:'Casi chocas el bloque contra la corona. Vigila la posición del bloque.',nopump:'Estás rotando sin bombas. Primero se circula, después se rota.',stall:'El top drive se frenó por exceso de peso. Mantén el peso en el rango del programa.',pumpclosed:'Estás bombeando contra el pozo cerrado: puedes fracturar la formación. Apaga las bombas.'}[e];
+    if(P&&!(e==='crown'&&pen.has('crown'))){st.errs++;pen.add(e);say(P);dr(`<div class="fb bad">${P}</div>`)}}};
+  setInterval&&(MODE.evI=setInterval(()=>{if(!MODE.console){clearInterval(MODE.evI);return}evLoop()},250));
+  const stable=(fn,secs)=>{let t=0,last=performance.now();return()=>{const n=performance.now(),d=(n-last)/1000;last=n;t=fn()?t+d*SPEED:0;return t>=secs}};
+  const step=async(i,txt,cond)=>{cur=i;dr();glowCtl(GL[i]);task(STEPS[i]);
+    if(how==='demo'||i<2)say(txt);
+    await untilC(cond);glowCtl([])};
+  // pistas
+  const hintLoop=async()=>{for(;;){const v=await w(waitInput());if(v==='HINT'){st.hints++;glowCtl(GL[Math.min(cur,4)]);await sayW(HINT[Math.min(cur,4)])}}};
+  hintLoop().catch(()=>{});
+  await step(0,'Primero enciende las bombas de lodo. Gira las dos perillas rojas hasta unas ochenta y cinco emboladas por minuto.',stable(()=>CS.flowIn>=520&&CS.flowIn<=690,1.2));
+  say('Bien, circulación establecida: unos seiscientos galones por minuto.');
+  await step(1,'Ahora arranca la rotaria: empuja la palanca azul hasta ciento diez RPM.',stable(()=>CS.rpm>=100&&CS.rpm<=120,1.2));
+  await step(2,'Baja la sarta con el joystick del malacate hasta tocar fondo. Despacio al llegar.',()=>CS.wob>=2);
+  await step(3,'Pon entre dieciséis y veinte mil libras sobre la broca. Puedes hacerlo a mano o activar el autoperforador.',stable(()=>CS.wob>=16&&CS.wob<=20&&CS.rop>0,2.5));
+  say('Excelente, estás perforando. Mantén los parámetros y vigila tanques y flujo de retorno.');
+  cur=4;dr();task('Perfora y vigila los tanques');CS.kickEnabled=true;CS.kickAt=Math.max(1.6,CS.hole-CS.start+2.2);
+  await untilC(()=>CS.kick);
+  // ---------- patada: el aprendiz debe detectarla ----------
+  const t={};let hinted=false,late=false;cur=5;
+  const PROC=['Detener la rotaria y quitar el peso','Levantar la sarta del fondo (≥ 1,5 m)','Apagar las bombas','Observar el flujo (flow check)','Cerrar el pozo (MAESTRO + ANULAR)','Leer las presiones de cierre'];
+  const drK=(fb='')=>panel(head('Consola del perforador','Responde al pozo',meterHTML(st)+stepsHTML(PROC,PROC.findIndex((_,i)=>!t['s'+i]))+fb+`<button class="btn sm ghost" type="button" data-in="HINT">Pista</button>`));
+  await untilC(()=>{const k=CS.kickT;
+    if(!t.s0&&!t.s1&&k>14&&!hinted){hinted=true;st.hints++;say('Revisa la pantalla central. ¿Qué está pasando con los tanques y el flujo de retorno?');drK()}
+    if(!t.s0&&!t.s1&&k>28&&!late){late=true;st.errs++;say('Estás reaccionando tarde. Los tanques llevan rato subiendo.');drK('<div class="fb bad">Reacción tardía.</div>')}
+    if(!t.s0&&CS.rpm<5&&CS.wob<1.5){t.s0=k;say('Rotaria detenida.');drK()}
+    if(!t.s1&&CS.hole-CS.bit>=1.5){t.s1=k;say('Sarta fuera del fondo.');drK()}
+    if(!t.s2&&CS.flowIn<5){t.s2=k;if(!t.s1){st.errs++;say('Apagaste las bombas con la broca en el fondo: riesgo de pegar la sarta. Primero se levanta.');drK('<div class="fb bad">Primero levanta la sarta, luego apaga las bombas.</div>')}else{say('Bombas apagadas. Ahora observa el flujo de retorno.');drK()}}
+    if(t.s2&&t.s1&&!t.s3&&CS.rpm<5){if(t.fc==null)t.fc=k;if(k-t.fc>3.2&&CS.flowOut>8){t.s3=k;say('Flow check positivo: con las bombas apagadas el pozo sigue fluyendo. Es una patada. Cierra el pozo.');drK();glowCtl(['master','ann'])}}
+    if(!t.s4&&(CS.annular||CS.rams)){t.s4=k;glowCtl([]);const bad=[];if(CS.rpm>5)bad.push('cerraste con la tubería rotando');if(CS.bit>=CS.hole-.3)bad.push('cerraste con la broca en el fondo');if(CS.flowIn>20)bad.push('cerraste con las bombas encendidas');
+      if(bad.length){st.errs+=bad.length;say('Pozo cerrado, pero '+bad.join(' y ')+'.');drK(`<div class="fb bad">Pozo cerrado, pero ${bad.join(' y ')}.</div>`)}else{say('Pozo cerrado. Espera a que las presiones se estabilicen.');drK()}}
+    return !!t.s4});
+  const gainAt=CS.gain,react=t.s0!=null?Math.min(t.s0,t.s1||99):(t.s1||CS.kickT);
+  await untilC(stable(()=>Math.abs(CS.sidpp-350)<12&&Math.abs(CS.sicp-520)<15,1.5));
+  glowCtl([]);fpLook(-Math.PI/2-1.05,-.5);task('Lee los manómetros del panel de control de pozo');
+  await decide('Presiones de cierre','Lee los manómetros del panel de control de pozo','<p>Mira a tu derecha, el panel azul: el manómetro <b>TUBERÍA</b> es la presión de cierre en la tubería (SIDPP) y <b>REVEST.</b> la del revestimiento (SICP).</p>',
+    shuffle([{t:'SIDPP 350 psi · SICP 520 psi',v:'ok',f:'Correcto. Con la SIDPP se calcula el peso del lodo para matar el pozo.'},{t:'SIDPP 520 psi · SICP 350 psi',v:'x',f:'Están invertidas: TUBERÍA marca 350 y REVEST. marca 520.'},{t:'SIDPP 3.500 psi · SICP 5.200 psi',v:'y',f:'Fíjate en la escala del manómetro: va de 0 a 2.000 psi.'}]),st,'ok');
+  t.s5=1;clearInterval(MODE.evI);evLoop();
+  const gpen=gainAt>6?Math.round((gainAt-6)*4):0;
+  await sayW(`Pozo cerrado con ${fmt(gainAt,1)} barriles de ganancia. Mientras más rápido reacciones, más pequeño es el influjo y más fácil el control.`);
+  await result(Math.max(0,100-st.errs*8-st.hints*3-gpen),`Ganancia al cierre: ${fmt(gainAt,1)} bbl · Reacción: ${Math.round(react)} s · ${st.errs} error${st.errs===1?'':'es'}, ${st.hints} pista${st.hints===1?'':'s'}.`)}
 
 /* ===================================================================== SUPERVISOR */
 async function modSupervisor(opt){
@@ -2139,6 +2612,193 @@ async function modSupervisor(opt){
   await decide('3 · Simulacro','¿Cómo cierras el simulacro?','',shuffle([{t:'Reunión de cierre: tiempos, aciertos, fallas y acciones; queda registrado',v:'ok',f:'Correcto. Un simulacro sin revisión no mejora nada.'},{t:'Felicitar a todos y volver al trabajo',v:'x',f:'Sin revisar tiempos y fallas, el simulacro no deja aprendizaje.'},{t:'Repetirlo de inmediato sin hablar',v:'y',f:'Primero se analiza qué pasó; luego se repite si hace falta.'}]),st,'ok');
   await sayW('Excelente. Permiso revisado, equipo inspeccionado y simulacro dirigido.');
   await result(pts(st),`${st.errs} error${st.errs===1?'':'es'} y ${st.hints} pista${st.hints===1?'':'s'}.`)}
+/* ===================================================================== RECORRIDO LIBRE EN PRIMERA PERSONA */
+const EYE_H=1.65,STEP=.45,DROP=.62,RAD=.28;
+const WS=[ // superficies caminables
+  {x0:-140,x1:140,z0:-140,z1:140,h:()=>0,hole:true},
+  {x0:-6.5,x1:6.5,z0:-8.3,z1:8.3,h:()=>.24,hole:true},
+  {x0:-5.3,x1:5.3,z0:-6.3,z1:6.3,h:()=>F},
+  {x0:5.78,x1:6.83,z0:3.2,z1:10.4,h:(x,z)=>lerp(F,.24,(z-3.2)/7.2)},
+  {x0:5.3,x1:6.85,z0:1.6,z1:3.2,h:()=>F},
+  {x0:-.8,x1:.8,z0:6.3,z1:12.6,h:(x,z)=>lerp(F,1.15,(z-6.3)/6.3)},
+  {x0:-.85,x1:.85,z0:12.5,z1:25.5,h:()=>1.12},
+  {x0:-.85,x1:.85,z0:25.5,z1:27.2,h:(x,z)=>lerp(1.12,0,(z-25.5)/1.7)},
+  {x0:-9.25,x1:-5.68,z0:-4.45,z1:-.35,h:()=>F},
+  {x0:-5.72,x1:-5.28,z0:-1.4,z1:-.5,h:()=>F},
+  {x0:12.9,x1:16.1,z0:-14,z1:14,h:()=>2.63},
+  {x0:11.2,x1:12.95,z0:3.5,z1:4.5,h:(x,z)=>lerp(0,2.63,(x-11.2)/1.7)},
+  {x0:-.45,x1:.45,z0:.95,z1:3.4,h:()=>F+MONK,monkey:true},
+];
+const BLK=[ // volúmenes que bloquean
+  [-2.8,2.8,-6,-3.4,F,F+2.6],[.6,2.5,1.15,2.15,F,F+30],[-1.3,1.3,-.7,.7,-1,F-.4],[3.7,5.1,-6.3,6.3,0,F-.4],[-5.1,-3.7,-6.3,6.3,0,F-.4],
+  [2.2,3.2,1,2,F,F+6],[-3.2,-2.2,1,2,F,F+6],[2.2,3.2,-2.6,-1.6,F,F+6],[-3.2,-2.2,-2.6,-1.6,F,F+6],
+  [-9.35,-9.15,-4.5,-.3,F,F+3],[-9.3,-5.7,-4.55,-4.38,F,F+3],[-9.3,-5.7,-.42,-.25,F,F+3],[-5.78,-5.62,-4.5,-1.45,F,F+3],[-5.78,-5.62,-.5,-.3,F,F+3],
+  [-7.05,-6.5,-3.8,-1.5,F,F+1],[-8.35,-7.55,-3.1,-2.2,F,F+1],[-8.05,-7.05,-1.75,-.95,F,F+1.2],
+  [12.9,16.1,-14,14,0,2.6],[13.4,15.6,-13.3,-7.8,2.6,3.6],[19.3,25.7,-4.3,-1.7,0,2.6],[19.3,25.7,1.7,4.3,0,2.6],
+  [-33,-21,-11.3,-8.7,0,3],[-33,-21,-4.8,-2.2,0,3],[-33,-21,1.7,4.3,0,3],[-32.2,-21.8,-25.7,-22.3,0,4],[25.6,30.4,-26.4,-21.6,0,5],
+  [-30.5,-21.5,30.5,33.5,0,3],[-30.5,-21.5,36.5,39.5,0,3],[-16.5,-7.5,38.5,41.5,0,3],[-16.7,-12.3,7.8,10.2,0,2],[7.2,10.8,-2.4,-.6,0,1.6],[5.6,7.2,-4,-2.4,0,3.3],
+  [2.4,8.2,12.4,26,0,1.25],[-8.2,-2.4,12.4,26,0,1.25],[-.85,.85,12.5,25.5,0,1.1],[11.2,16.9,39.2,40.3,0,1],
+  [-2.8,2.8,.95,3.45,F+MONK-.05,F+MONK+1.2,'mk1'],
+].map(a=>({x0:a[0],x1:a[1],z0:a[2],z1:a[3],y0:a[4],y1:a[5],id:a[6]}));
+function inHole(x,z){return Math.abs(x)<1.85&&Math.abs(z)<1.85}
+function surfaceAt(x,z,y){let best=null;for(const s of WS){if(x<s.x0||x>s.x1||z<s.z0||z>s.z1)continue;if(s.hole&&inHole(x,z))continue;if(s.monkey&&!WALK.monkey)continue;const h=s.h(x,z);if(h<=y+STEP&&(best===null||h>best))best=h}return best}
+function blocked(x,z,y){for(const b of BLK){if(b.id==='mk1'){if(!WALK.monkey)continue;if(x>-.45&&x<.45&&z>.95&&z<3.4)continue}
+  if(x>b.x0-RAD&&x<b.x1+RAD&&z>b.z0-RAD&&z<b.z1+RAD&&y+1.75>b.y0&&y+.35<b.y1)return true}return Math.abs(x)>130||Math.abs(z)>130}
+function tryMove(p,dx,dz){const nx=p.x+dx,nz=p.z+dz,s=surfaceAt(nx,nz,p.y);if(s===null||p.y-s>DROP||blocked(nx,nz,s))return false;p.x=nx;p.z=nz;p.y=s;return true}
+const WALK={pos:V(0,0,47),monkey:false,bob:0,snapT:0,turnT:0};
+const yawTo=(a,b)=>Math.atan2(-(b.x-a.x),-(b.z-a.z));
+
+/* ---------- lugares y puntos de interés ---------- */
+const PLACES=[
+  ['Portería',V(0,0,46),V(0,10,0)],['Piso de perforación',V(2.6,F,3.6),V(0,F+1,0)],['Cabina del perforador',V(-6.3,F,-1.0),V(-7.2,F+1,-2.6)],
+  ['Base de la escalera',V(4,F,-.35),V(3,F+3,-.35)],['Bajo el piso (contrapozo)',V(.2,.24,3.4),V(0,1,0)],['Tanques de lodo',V(13.4,2.63,3),V(14.5,3,-10)],
+  ['Burros de tubería',V(1.8,0,18),V(5,1,19)],['Bombas de lodo',V(18,0,6),V(22,1,0)],['Generadores',V(-19,0,-3),V(-27,1,-3)]];
+const SPOTS=[
+  ['info:cellar',V(2.1,.95,1.4)],['info:sub',V(6.4,1.4,8.6)],['info:floor',V(2.8,F+1.4,2.6)],['info:drawworks',V(1.7,F+1.4,-2.9)],['info:doghouse',V(-4.9,F+1.6,-.6)],
+  ['info:mast',V(4.2,F+1.6,.6)],['info:crown',V(.3,F+MONK+1.9,3.2)],['info:monkey',V(-.3,F+MONK+1.5,3.2)],['info:block',V(-1.5,F+1.6,2.4)],['info:bop',V(1.75,1.6,-1.2)],
+  ['info:mud',V(12.2,3.9,6.2)],['info:rack',V(1.6,1.6,15.5)],
+  ['sit',V(-7.6,F+1.15,-2.65),'Sentarse en la consola'],['climb',V(3.6,F+1.2,-.35),'Subir al encuelladero'],['down',V(.35,F+MONK+1.2,1.2),'Bajar por la escalera'],['well',V(.6,.9,1.95),'Bajar por el pozo']];
+function spotMarker(id,pos,label){const g=new THREE.Group();g.position.copy(pos);world.add(g);
+  const isInfo=id.startsWith('info:');const c=isInfo?0xf0a81c:0x62a8d4;
+  const disc=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.025,24),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.9}));disc.rotation.x=Math.PI/2;g.add(disc);
+  const ic=new THREE.Mesh(new THREE.PlaneGeometry(.17,.17),new THREE.MeshBasicMaterial({map:textTex([isInfo?'i':'➜'],{w:128,h:128,bg:isInfo?'#f0a81c':'#62a8d4',fg:'#10161b',font:'bold 96px Georgia, serif'}),transparent:true}));ic.position.z=.014;g.add(ic);
+  const lb=label3D(label||(PARTS[id.slice(5)]||{}).n||id,.2);lb.position.y=.2;g.add(lb);g.userData.lbl=lb;
+  proxy(g,.5);act(g,id,label||(PARTS[id.slice(5)]||{}).n);g.userData.spot=id;g.userData.isInfo=isInfo;
+  g.traverse(o=>{if(o.isMesh)o.castShadow=false});return g}
+
+/* ---------- interfaz del recorrido ---------- */
+function exploreUI(on){
+  const touch=matchMedia('(pointer:coarse)').matches;$('#joy').hidden=!on||!touch;$('#useBtn').hidden=!on||!touch;$('#cross').hidden=!on;$('#prompt').hidden=true;
+  if(on)setupTouchJoy();else{JOY.x=JOY.y=0;if(document.pointerLockElement)document.exitPointerLock()}}
+function exploreCleanup(){if(!MODE.walk&&!MODE.explore)return;exploreUI(false);MODE.walk=false;MODE.explore=false;stopAmbient();beepSnd(false);underground(false);camera.fov=55;camera.updateProjectionMatrix();if(MODE.console)consoleSeat(false)}
+
+/* ---------- caminar ---------- */
+function walkTick(dt){
+  if(!MODE.walk)return;
+  let f=0,s=0;
+  if(KEYS.has('KeyW')||KEYS.has('ArrowUp'))f+=1;if(KEYS.has('KeyS')||KEYS.has('ArrowDown'))f-=1;if(KEYS.has('KeyD')||KEYS.has('ArrowRight'))s+=1;if(KEYS.has('KeyA')||KEYS.has('ArrowLeft'))s-=1;
+  f+=JOY.y;s+=JOY.x;
+  let yaw=CAM.fp.yaw;
+  if(renderer.xr.isPresenting){
+    const ses=renderer.xr.getSession();const d=V(0,0,0);camera.getWorldDirection(d);yaw=Math.atan2(-d.x,-d.z);
+    if(ses)for(const src of ses.inputSources){const gp=src.gamepad;if(!gp||gp.axes.length<4)continue;const ax=gp.axes[2],ay=gp.axes[3];
+      if(src.handedness==='left'){f+=-ay;s+=ax}else if(src.handedness==='right'){WALK.turnT-=dt;if(Math.abs(ax)>.7&&WALK.turnT<=0){WALK.turnT=.35;dolly.rotation.y-=Math.sign(ax)*Math.PI/4}}}}
+  const L=Math.hypot(f,s);if(L>1){f/=L;s/=L}
+  const run=KEYS.has('ShiftLeft')||KEYS.has('ShiftRight')||L>.95&&JOY.on;
+  const sp=(run?4.2:2.1)*dt,fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);
+  const dx=(fx*f+rx*s)*sp,dz=(fz*f+rz*s)*sp;const p=WALK.pos;
+  if(L>.05){if(!tryMove(p,dx,dz)){tryMove(p,dx,0)||tryMove(p,0,dz)}WALK.bob+=dt*(run?11:7.5)*Math.min(1,L)}
+  else{const s0=surfaceAt(p.x,p.z,p.y);if(s0!==null&&p.y-s0>0&&p.y-s0<DROP)p.y=s0}
+  const bob=Math.sin(WALK.bob)*.035*Math.min(1,L);
+  CAM.fp.pos.set(p.x,p.y+EYE_H+bob,p.z);
+  if(renderer.xr.isPresenting){dolly.position.set(p.x,p.y,p.z)}
+  // punto de interés más cercano
+  let best=null,bd=3.2;for(const o of INTER){if(!o.userData.spot||!visibleDeep(o))continue;const q=o.getWorldPosition(V(0,0,0));const d=Math.hypot(q.x-p.x,q.z-p.z)+Math.max(0,Math.abs(q.y-(p.y+1.2))-1.2);if(d<bd){bd=d;best=o}}
+  for(const o of INTER){if(!o.userData.lbl)continue;const q=o.getWorldPosition(V(0,0,0));o.userData.lbl.visible=q.distanceTo(CAM.pos)>2.4}
+  MODE.near=best;const pr=$('#prompt');
+  if(best){pr.hidden=false;pr.textContent=(matchMedia('(pointer:coarse)').matches?'Toca «Usar»: ':'E · ')+best.userData.label}else pr.hidden=true;
+  setAmbient({level:p.y<0?.15:.5,inside:p.x<-5.6&&p.x>-9.3&&p.z<-.3&&p.z>-4.5&&p.y>F-1});
+}
+function teleport(pos,look){WALK.pos.copy(pos);WALK.monkey=pos.y>F+MONK-1;const y=yawTo(pos,look);fpMode(V(pos.x,pos.y+EYE_H,pos.z),y,-.1);station(pos,y);if(renderer.xr.isPresenting){dolly.position.copy(pos);dolly.rotation.y=y}}
+
+/* ---------- módulo ---------- */
+async function modRecorrido(){
+  MODE.walk=true;MODE.explore=true;startAmbient();
+  tripSetup();RIG.slips.visible=true;RIG.slips.position.y=F+.12;setBlock(18);placeStand();RIG.stand.visible=false;
+  const markers=SPOTS.map(([id,pos,lbl])=>temp(spotMarker(id,pos,lbl)));
+  const seen=new Set();
+  RIG.ins.g.visible=true;insAt(V(1.6,0,44.6));
+  teleport(V(0,0,47.5),V(0,8,0));exploreUI(true);$('#cams').hidden=true;
+  const keys=Object.keys(PARTS);
+  const draw=()=>panel(head('Recorrido libre','Explora el taladro',`
+    <p class="muted" style="font-size:14px">${matchMedia('(pointer:coarse)').matches?'Mueve el joystick para caminar y arrastra para mirar. Toca «Usar» cerca de los puntos.':'<b>W A S D</b> para caminar, <b>Shift</b> para correr, arrastra para mirar y <b>E</b> para usar. Con el botón «Modo juego» el ratón mueve la vista.'} En las Meta Quest: palanca izquierda para caminar, derecha para girar y gatillo para usar.</p>
+    <div class="meter"><span>Componentes vistos: <b class="mono">${seen.size} de ${keys.length}</b></span></div>
+    <div class="eyebrow" style="margin-top:12px">Ir a</div><div class="chips">${PLACES.map((p,i)=>`<button class="pchip" type="button" data-in="tp:${i}">${p[0]}</button>`).join('')}</div>
+    <div class="eyebrow">Componentes</div><div class="chips">${keys.map(k=>`<span class="pchip ${seen.has(k)?'seen':''}" style="cursor:default">${PARTS[k].n}</span>`).join('')}</div>
+    <div class="row" style="margin-top:6px"><button class="btn sm" type="button" data-in="lock" ${matchMedia('(pointer:coarse)').matches?'hidden':''}>Modo juego (ratón)</button><button class="btn sm ghost" type="button" data-in="fin">Terminar recorrido</button></div>`));
+  draw();setButtons([{t:'Terminar recorrido',v:'fin'}]);
+  MODE.use=()=>{if(MODE.near)dispatch(MODE.near.userData.spot);else toast('No hay nada para usar aquí. Acércate a un punto ⓘ o ➜.')};
+  MODE.onKey=code=>{if(code==='KeyE'&&MODE.walk)MODE.use()};
+  MODE.tick=walkTick;
+  await sayW('Bienvenido. Este es el recorrido libre: camina por toda la locación, sube al piso, entra a la cabina, sube al encuelladero o baja por el pozo. Los puntos amarillos tienen información y los azules son acciones.');
+  for(;;){const v=await w(waitInput());
+    if(v==='fin'){backToHub();return}
+    if(v==='lock'){try{const r=renderer.domElement.requestPointerLock();if(r&&r.catch)r.catch(()=>toast('Este navegador no permite capturar el ratón aquí. Arrastra para mirar.'))}catch(e){toast('Arrastra para mirar.')}continue}
+    if(v.startsWith('tp:')){const pl=PLACES[+v.slice(3)];await w(fade(()=>teleport(pl[1],pl[2])));continue}
+    const mk=markers.find(m=>m.userData.spot===v);
+    if(mk&&MODE.walk){const q=mk.getWorldPosition(V(0,0,0));if(Math.hypot(q.x-WALK.pos.x,q.z-WALK.pos.z)>6.5){toast('Acércate más para usar: '+mk.userData.label);continue}}
+    if(v.startsWith('info:')){const k=v.slice(5),pp=PARTS[k];seen.add(k);draw();
+      const fw=V(-Math.sin(CAM.fp.yaw),0,-Math.cos(CAM.fp.yaw)),rt=V(Math.cos(CAM.fp.yaw),0,-Math.sin(CAM.fp.yaw));
+      const ip=WALK.pos.clone().addScaledVector(fw,1.6).addScaledVector(rt,.7);const sy=surfaceAt(ip.x,ip.z,WALK.pos.y+.3);ip.y=sy==null?WALK.pos.y:sy;insAt(ip);RIG.ins.point=WP(pp.tgt);
+      say(pp.narr).then(()=>{if(RIG.ins)RIG.ins.point=null});continue}
+    if(v==='sit'){await consoleFree();draw();setButtons([{t:'Terminar recorrido',v:'fin'}]);continue}
+    if(v==='climb'){await climbLadder(true);continue}
+    if(v==='down'){await climbLadder(false);continue}
+    if(v==='well'){await wellRide();draw();setButtons([{t:'Terminar recorrido',v:'fin'}]);continue}}
+}
+async function climbLadder(up){
+  MODE.walk=false;$('#prompt').hidden=true;const LX=y=>C(1,0,y).x+.95;
+  if(up){say('Te conectas al bloque retráctil y subes con tres puntos de apoyo.');await w(fade(()=>{fpMode(V(LX(0),F+1.62,-.35),Math.PI/2,.25)}));
+    await w(tweenP(6,p=>{const y=p*MONK;CAM.fp.pos.set(LX(y),F+1.62+y,-.35);CAM.fg.pitch=.25+Math.sin(p*40)*.02;if(renderer.xr.isPresenting)dolly.position.set(LX(y),F+y,-.35)}));
+    RIG.derrick.g.visible=false;WALK.monkey=true;await w(fade(()=>teleport(V(0,F+MONK,2.6),V(0,F+MONK,-1))));say('Estás en el encuelladero, a veintisiete metros. Aquí te conectas a la línea de vida.')}
+  else{await w(fade(()=>{fpMode(V(LX(MONK),F+MONK+1.62,-.35),Math.PI/2,-.3)}));await w(tweenP(5,p=>{const y=(1-p)*MONK;CAM.fp.pos.set(LX(y),F+1.62+y,-.35);if(renderer.xr.isPresenting)dolly.position.set(LX(y),F+y,-.35)}));
+    WALK.monkey=false;RIG.derrick.g.visible=true;await w(fade(()=>teleport(V(4,F,-.35),V(0,F+1,0))))}
+  MODE.walk=true}
+
+/* ---------- consola libre desde el recorrido ---------- */
+async function consoleFree(){
+  MODE.walk=false;exploreUI(false);$('#cross').hidden=false;consoleReset({kickEnabled:false});
+  await w(fade(()=>{consoleSeat(true);camera.fov=70;camera.updateProjectionMatrix()}));
+  const prevTick=MODE.tick;MODE.tick=dt=>consoleSim(dt);
+  panel(head('Consola libre','Prueba los mandos',`<p>Practica sin evaluación. Arrastra las palancas, el joystick y las perillas con la mano. En el computador también puedes usar ↑ ↓ para el malacate.</p>
+    <ul class="steps"><li class="done"><b>Bombas 1 y 2</b>: perillas rojas, apoyabrazos derecho.</li><li class="done"><b>Rotaria</b>: palanca azul, apoyabrazos derecho.</li><li class="done"><b>Malacate</b>: joystick izquierdo. Adelante baja, atrás sube.</li><li class="done"><b>AUTO</b>: autoperforador con el peso de la perilla.</li></ul>
+    <button class="btn primary" type="button" data-in="stand">Levantarse</button>`));setButtons([{t:'Levantarse',v:'stand'}]);
+  say('Siéntete libre de probar la consola. Empieza por las bombas, luego la rotaria, y baja la sarta con el joystick hasta tocar fondo.');
+  for(;;){if(await w(waitInput())==='stand')break}
+  MODE.tick=prevTick;CS.run=false;
+  await w(fade(()=>{consoleSeat(false);camera.fov=55;camera.updateProjectionMatrix();consoleReset();setBlock(18);placeStand();teleport(V(-6.4,F,-1.0),V(-4,F+1,-1))}));
+  exploreUI(true);MODE.walk=true}
+
+/* ---------- bajada por el pozo ---------- */
+const FOG0={c:0xc9d5dc,n:220,f:1300};let headLamp=null;
+function underground(on){
+  if(!scene)return;MODE.under=on;sky.visible=!on;scene.fog.color.set(on?0x0b0907:FOG0.c);scene.fog.near=on?1:FOG0.n;scene.fog.far=on?26:FOG0.f;scene.background=on?new THREE.Color(0x050403):null;
+  if(on&&!headLamp){headLamp=new THREE.PointLight(0xfff0d8,1.4,14,1.5);camera.add(headLamp);headLamp.position.set(.2,.2,0)}if(headLamp)headLamp.visible=on;
+  if(RIG.deep)RIG.deep.visible=on;sun.intensity=on?0:(NIGHT?.12:2.1)}
+async function wellRide(){
+  buildDeepWell();MODE.walk=false;exploreUI(false);
+  const R=2.6,cx=Math.sin(CAMTH)*R,cz=Math.cos(CAMTH)*R;let y=-3.5,vy=0;const yTop=-3.5,yBot=-159.4;
+  await w(fade(()=>{underground(true);fpMode(V(cx,y,cz),CAMTH,-.15);MODE.noHand=true}));
+  const NARR=[[-3,'Bajamos por el pozo, visto en corte. Para que se vea mejor, el ancho está ampliado tres veces y la profundidad comprimida: cada metro que bajas aquí son unos quince metros reales.'],
+    [-7,'Este tubo grande es el revestimiento conductor de treinta pulgadas. Evita que el suelo blando se derrumbe al inicio del pozo.'],
+    [-20,'Adentro va el revestimiento de superficie, de trece y tres octavos. El cemento gris entre el tubo y la roca lo fija y aísla los acuíferos.'],
+    [-48,'Aquí termina el revestimiento de superficie: esa es su zapata. Seguimos dentro del revestimiento intermedio, de nueve y cinco octavos.'],
+    [-75,'En la lutita la roca es más dura y menos permeable. Fíjate en los recortes: el lodo los sube por el espacio anular, entre la tubería y el revestimiento.'],
+    [-107,'Pasamos la zapata del revestimiento intermedio. De aquí en adelante es hueco abierto de ocho y media pulgadas: la roca queda expuesta.'],
+    [-130,'Esta es la arenisca productora. Tiene gas en sus poros. Si la presión del lodo es menor que la de esta formación, el gas entra al pozo: eso es una patada.'],
+    [-145,'Abajo de la tubería extrapesada están los lastrabarrenas: tubos muy pesados que ponen el peso sobre la broca.'],
+    [-154,'La herramienta amarilla es el MWD: mide la dirección y la inclinación del pozo mientras se perfora y manda los datos a superficie por pulsos de lodo.'],
+    [-158,'Y esta es la broca PDC. Gira, corta la roca con sus cortadores de diamante, y el lodo sale por sus boquillas para limpiar el fondo.']];
+  const done=new Set();
+  const dr=()=>panel(head('Bajada por el pozo','Recorrido en corte',`<p>Profundidad real aproximada: <b class="mono" id="wd">0 m</b></p><p class="muted" style="font-size:14px">Mantén presionado para bajar o subir (o usa W y S). Arrastra para mirar alrededor.</p>
+    <div class="row"><button class="btn hold" type="button" id="hDown" style="width:auto;flex:1">Bajar</button><button class="btn hold" type="button" id="hUp" style="width:auto;flex:1;background:#1f3a5c;border-color:#62a8d4">Subir</button></div>
+    <div class="row" style="margin-top:10px"><button class="btn sm" type="button" data-in="bot">Ir a la broca</button><button class="btn sm" type="button" data-in="top">Volver arriba</button><button class="btn sm ghost" type="button" data-in="exit">Salir del pozo</button></div>`));
+  dr();setButtons([{t:'Ir a la broca',v:'bot'},{t:'Volver arriba',v:'top'},{t:'Salir del pozo',v:'exit'}]);
+  let dirH=0;const hb=(id,d)=>{const b=$('#'+id);b.addEventListener('pointerdown',()=>dirH=d);['pointerup','pointercancel','pointerleave'].forEach(e=>b.addEventListener(e,()=>{if(dirH===d)dirH=0}))};hb('hDown',-1);hb('hUp',1);
+  let target=null;
+  MODE.tick=dt=>{let d=dirH;if(KEYS.has('KeyS')||KEYS.has('ArrowDown'))d=-1;if(KEYS.has('KeyW')||KEYS.has('ArrowUp'))d=1;d+=JOY.y;
+    if(renderer.xr.isPresenting){const ses=renderer.xr.getSession();if(ses)for(const s of ses.inputSources){if(s.gamepad&&s.gamepad.axes.length>3)d+=-s.gamepad.axes[3]}}
+    if(target!=null){const dy=target-y;d=Math.sign(dy)*Math.min(1,Math.abs(dy)/4);if(Math.abs(dy)<.05)target=null}
+    vy=lerp(vy,d*(target!=null?12:5),1-Math.exp(-dt*3));y=clamp(y+vy*dt,yBot,yTop);
+    CAM.fp.pos.set(cx,y-2.3+1.6,cz);if(renderer.xr.isPresenting)dolly.position.set(cx,y-2.3,cz);
+    const e=$('#wd');if(e)e.textContent=Math.max(0,Math.round(-(y+1.5)*WELL.scale)).toLocaleString('es-CO')+' m';
+    for(const[ny,t]of NARR){if(!done.has(ny)&&y<=ny+2.3){done.add(ny);say(t);break}}
+    updateDeep(dt)};
+  if(renderer.xr.isPresenting)station(V(cx,y-2.3,cz),CAMTH);
+  for(;;){const v=await w(waitInput());if(v==='exit')break;if(v==='bot')target=yBot+1;if(v==='top')target=yTop}
+  MODE.tick=walkTick;stopSay();
+  await w(fade(()=>{underground(false);MODE.noHand=false;teleport(V(.2,.24,3.4),V(0,1,0))}));
+  exploreUI(true);MODE.walk=true}
 /* ===================================================================== APP: perfiles, panel principal, bucle */
 const store={get(){try{return JSON.parse(localStorage.getItem('escuelaPerforacion')||'null')}catch(e){return null}},set(v){try{localStorage.setItem('escuelaPerforacion',JSON.stringify(v))}catch(e){}}};
 let DB=store.get()||{profiles:[],cur:null};
@@ -2181,7 +2841,7 @@ async function checkPlatforms(){const base=['Celular','Tablet','Computador'].map
   $('#platforms').innerHTML=base.concat(vr,ar).join('')}
 function complete(id,score){const p=prof();const m=p.mods[id]||(p.mods[id]={});const prev=m.best;m.best=Math.max(prev||0,score);m.last=score;m.tries=(m.tries||0)+1;save();return{prev,best:m.best}}
 
-const SCRIPTS={hse:modHSE,taladro:modTaladro,rigup:modRigup,encuelle:modEncuelle,control:modControl,casos:modCasos,patio:modPatio,cunero:modCunero,lodo:modLodo,consola:modConsola,supervisor:modSupervisor};
+const SCRIPTS={recorrido:modRecorrido,hse:modHSE,taladro:modTaladro,rigup:modRigup,encuelle:modEncuelle,control:modControl,casos:modCasos,patio:modPatio,cunero:modCunero,lodo:modLodo,consola:modConsola,supervisor:modSupervisor};
 function openModule(id,opt){
   const m=MODS.find(x=>x.id===id);show('s-mod');$('#modTitle').textContent=`${m.n} · ${m.t}`;
   initEngine();resize();if(!RIG.home)saveHome();
@@ -2200,7 +2860,7 @@ function tick(){
   for(const tw of TW.slice()){tw.t+=dt;const p=Math.min(1,tw.t/tw.dur);tw.fn(ease(p));if(p>=1){const i=TW.indexOf(tw);if(i>=0)TW.splice(i,1);tw.done&&tw.done()}}
   if(MODE.tick)MODE.tick(dt);
   const I=RIG.ins;I.talk=NAR.speaking;if(talkWas!==I.talk){talkWas=I.talk;$('#talkDot').classList.toggle('on',I.talk)}
-  insFace(dt);animatePeople(dt,T);updateLines();updateFX(dt);updateBubbles(dt);
+  insFace(dt);animatePeople(dt,T);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);
   const k=.5+.5*Math.sin(T*5);
   for(const o of INTER){const h=o.userData.hot,a=h?.35+.65*k:.06+.1*k;o.traverse(m=>{if(m.isMesh)emis(m,.94*a,.62*a,.1*a)})}
   RIG.beacons.forEach((b,i)=>b.material.emissive.setHex(MODE.alarm&&((T*4|0)%2===i)?b.userData.c:0));
@@ -2217,7 +2877,7 @@ function tick(){
   if(!renderer.xr.isPresenting&&I.g.visible&&pip.offsetWidth){const r=pip.getBoundingClientRect(),c=cv.getBoundingClientRect();
     const x=r.left-c.left+2,y=c.bottom-r.bottom+2,w=r.width-4,h=r.height-4;
     I.head.getWorldPosition(hv);const yaw=I.g.rotation.y;const pc=RIG.pipCam;const oy=I.pipOff||0;pc.position.set(hv.x+Math.sin(yaw)*.95,hv.y+oy+.06,hv.z+Math.cos(yaw)*.95);pc.lookAt(hv.x,hv.y+oy-.1,hv.z);pc.aspect=w/h;pc.updateProjectionMatrix();
-    if(I.mouth)I.mouth.visible=true;renderer.setViewport(x,y,w,h);renderer.setScissor(x,y,w,h);renderer.setScissorTest(true);renderer.setClearColor(0x2a3640,1);renderer.clear();renderer.render(scene,pc);renderer.setScissorTest(false);renderer.setClearColor(0x000000,0)}
+    if(I.mouth)I.mouth.visible=true;const hs=FPH&&FPH.show;if(FPH){FPH.h.g.visible=FPH.sl.visible=FPH.band.visible=false}renderer.setViewport(x,y,w,h);renderer.setScissor(x,y,w,h);renderer.setScissorTest(true);renderer.setClearColor(0x2a3640,1);renderer.clear();renderer.render(scene,pc);renderer.setScissorTest(false);if(FPH&&hs){FPH.h.g.visible=FPH.sl.visible=FPH.band.visible=true}renderer.setClearColor(0x000000,0)}
 }
 
 if(prof())openHub();else{renderLogin();show('s-login')}

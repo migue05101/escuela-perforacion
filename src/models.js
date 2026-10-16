@@ -202,15 +202,10 @@ function buildDoghouse(){
   for(const dx of[-1.6,1.6])for(const dz of[-1.9,1.9])bar(g,V(x+dx,0,z+dz),V(x+dx,F-.2,z+dz),.3,MAT.steel);
   rod(g,V(x-1.6,.5,z-1.9),V(x-1.6,F-.6,z+1.9),.08,MAT.steelDk,1);rod(g,V(x+1.6,.5,z-1.9),V(x+1.6,F-.6,z+1.9),.08,MAT.steelDk,1);
   boxT(g,3.6,.3,4.2,MAT.steel,x,F-.15,z);
-  boxT(g,3.6,3,4.2,MAT.white,x,F+1.5,z);
-  const gl=box(g,.06,1.3,3.4,MAT.glass,x+1.81,F+1.9,z);gl.castShadow=false;box(g,1.4,1.1,.06,MAT.glass,x+.6,F+1.9,z+2.11).castShadow=false;
-  box(g,1.2,.6,1,MAT.white,x-.5,F+3.3,z);
+  buildCabin(g);
   RIG.beacons=[];[[x+1.2,0xff3018],[x+.7,0xffb000]].forEach(([bx,c])=>{const b=new THREE.Mesh(new THREE.SphereGeometry(.17,12,10),std(c,{emissive:0x000000,roughness:.3}));b.position.set(bx,F+3.2,z-1.6);b.userData.c=c;g.add(b);RIG.beacons.push(b)});
-  // consola del perforador
-  const con=box(g,.8,.9,2,MAT.steelDk,x+1.1,F+.75,z);con.rotation.z=.25;
-  box(g,.04,.5,.8,std(0x103550,{emissive:0x0a3a5a,roughness:.2}),x+1.35,F+1.35,z-.4);
   // pasarela al piso
-  boxT(g,.5,.1,1.6,MAT.grate,x+2.0,F-.05,z+1.6);
+  boxT(g,.5,.1,1.0,MAT.grate,x+2.0,F-.05,z+1.45);
   // panel remoto de BOP (en el piso, junto a la puerta)
   const bp=new THREE.Group();bp.position.set(-4.85,F,-3.6);g.add(bp);RIG.bopPanel=bp;
   box(bp,.12,1.1,.1,MAT.steel,0,.55,0);box(bp,.18,.7,.9,MAT.red,0,1.45,0);
@@ -374,7 +369,7 @@ function buildCrew(){
   const g=new THREE.Group();world.add(g);RIG.crew=g;
   const a=makePerson({});a.g.position.set(1.45,F,.95);a.g.rotation.y=-2.3;g.add(a.g);RIG.hand1=a;
   const b=makePerson({});b.g.position.set(-1.35,F,.9);b.g.rotation.y=2.4;g.add(b.g);RIG.hand2=b;
-  const d=makePerson({suit:0x2a5a86,hat:0xf3f3f0});d.g.position.set(-7.0,F,-2.3);d.g.rotation.y=Math.PI/2;g.add(d.g);RIG.driller=d;
+  const d=makePerson({suit:0x2a5a86,hat:0xf3f3f0});d.g.position.set(-8.75,F,-3.9);d.g.rotation.y=Math.PI/2;g.add(d.g);RIG.driller=d;
   const r1=makePerson({suit:0xd8661c});r1.g.position.set(3.4,0,15);r1.g.rotation.y=-.6;g.add(r1.g);
   const r2=makePerson({suit:0x2f7d4a,hat:0xffffff});r2.g.position.set(11.4,0,-11.6);r2.g.rotation.y=1.2;g.add(r2.g);RIG.mudman=r2;
   // trabajador que sube por la escalera (casos)

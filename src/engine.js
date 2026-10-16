@@ -108,7 +108,7 @@ function initEngine(){
   scene.add(sun);scene.add(sun.target);
   world=new THREE.Group();scene.add(world);
   raycaster=new THREE.Raycaster();
-  buildWorld();loadWorker();
+  buildWorld();loadWorker();initHands();
   setupInput(renderer.domElement);setupXR();
   new ResizeObserver(resize).observe(view);applyQuality();resize();
   renderer.setAnimationLoop(tick);
@@ -160,8 +160,14 @@ function onHit(h){if(!h)return;if(h.act){if(h.act==='HOLD')return;dispatch(h.act
 function setupInput(el){
   const pts=new Map();let down=null,pinch=0;
   const dist=()=>{const a=[...pts.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
-  el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pts.size===1)down={moved:0};if(pts.size===2)pinch=dist()});
+  el.addEventListener('pointerdown',e=>{
+    if(LOCK){const r=el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;if(!ctlDown(cx,cy,e.pointerId))pickAt(cx,cy);return}
+    el.setPointerCapture(e.pointerId);PTR.x=e.clientX;PTR.y=e.clientY;PTR.has=true;
+    if(pts.size===0&&ctlDown(e.clientX,e.clientY,e.pointerId)){down={moved:0,ctl:true};pts.set(e.pointerId,{x:e.clientX,y:e.clientY});return}
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pts.size===1)down={moved:0};if(pts.size===2)pinch=dist();if(e.pointerType!=='mouse')hover(e,true)});
   el.addEventListener('pointermove',e=>{
+    if(LOCK)return;PTR.x=e.clientX;PTR.y=e.clientY;PTR.has=true;
+    if(DRAG&&DRAG.id===e.pointerId){ctlMove(e.clientX,e.clientY);return}
     const p=pts.get(e.pointerId);if(!p){if(e.pointerType==='mouse')hover(e);return}
     const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
     if(pts.size===1){if(down)down.moved+=Math.abs(dx)+Math.abs(dy);if(down&&down.moved<5)return;
@@ -169,15 +175,17 @@ function setupInput(el){
       if(CAM.mode==='orbit'){CAM.og.th-=dx*.006;CAM.og.ph=clamp(CAM.og.ph-dy*.006,.12,MODE.under?2.6:1.56)}
       else if(CAM.mode==='fp'){CAM.fg.yaw+=dx*.005;CAM.fg.pitch=clamp(CAM.fg.pitch+dy*.005,-1.35,1.2)}}
     else if(pts.size===2&&CAM.mode==='orbit'){const d=dist();if(pinch)CAM.og.r=clamp(CAM.og.r*pinch/d,3,220);pinch=d;if(down)down.moved=99}});
-  const up=e=>{if(down&&down.moved<6&&pts.size===1)pickAt(e.clientX,e.clientY);pts.delete(e.pointerId);if(!pts.size)down=null;pinch=0};
+  const up=e=>{if(DRAG&&DRAG.id===e.pointerId){ctlUp();pts.delete(e.pointerId);down=null;return}if(down&&down.ctl){pts.delete(e.pointerId);down=null;return}if(down&&down.moved<6&&pts.size===1)pickAt(e.clientX,e.clientY);pts.delete(e.pointerId);if(!pts.size)down=null;pinch=0;if(e.pointerType!=='mouse')setTimeout(()=>{if(!pts.size&&!DRAG){PTR.hp=null}},900)};
   el.addEventListener('pointerup',up);el.addEventListener('pointercancel',e=>{pts.delete(e.pointerId);down=null});
   el.addEventListener('wheel',e=>{e.preventDefault();if(CAM.mode==='orbit')CAM.og.r=clamp(CAM.og.r*(1+e.deltaY*.001),3,220)},{passive:false});
-  el.addEventListener('pointerleave',()=>{$('#tip').hidden=true});
+  el.addEventListener('pointerleave',()=>{$('#tip').hidden=true;if(!DRAG)PTR.has=false});
 }
 function rayFromScreen(x,y){const r=renderer.domElement.getBoundingClientRect();raycaster.setFromCamera({x:(x-r.left)/r.width*2-1,y:-(y-r.top)/r.height*2+1},camera);return raycaster}
 function pickAt(x,y){onHit(hitTest(rayFromScreen(x,y)))}
 let hoverT=0;
-function hover(e){const now=performance.now();if(now-hoverT<60)return;hoverT=now;const h=hitTest(rayFromScreen(e.clientX,e.clientY));const tip=$('#tip');
+function hover(e,force){const now=performance.now();if(!force&&now-hoverT<60)return;hoverT=now;const rc=rayFromScreen(e.clientX,e.clientY);const ch=ctlHit(rc);
+  if(ch){PTR.hp=ch.point;PTR.act=true;const tip=$('#tip');renderer.domElement.style.cursor='grab';const r=$('#view').getBoundingClientRect();tip.textContent=ch.ctl.label||'';tip.style.left=(e.clientX-r.left)+'px';tip.style.top=(e.clientY-r.top)+'px';tip.hidden=!ch.ctl.label;return}
+  const h=hitTest(rc);PTR.hp=h?h.point:null;PTR.act=!!(h&&h.act);const tip=$('#tip');
   const lbl=h&&(h.act?h.obj.userData.label:(MODE.onPart&&PARTS[h.part]?PARTS[h.part].n:null));
   renderer.domElement.style.cursor=lbl||(h&&h.act)?'pointer':'grab';
   if(lbl){const r=$('#view').getBoundingClientRect();tip.textContent=lbl;tip.style.left=(e.clientX-r.left)+'px';tip.style.top=(e.clientY-r.top)+'px';tip.hidden=false}else tip.hidden=true}
@@ -189,10 +197,11 @@ function setupXR(){
   const tmp=new THREE.Matrix4(),rc=new THREE.Raycaster();
   for(let i=0;i<2;i++){const c=renderer.xr.getController(i);
     const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(0,0,0),V(0,0,-8)]),new THREE.LineBasicMaterial({color:0xf0a81c}));c.add(line);
-    const sel=down=>{tmp.identity().extractRotation(c.matrixWorld);rc.ray.origin.setFromMatrixPosition(c.matrixWorld);rc.ray.direction.set(0,0,-1).applyMatrix4(tmp);
-      if(down){const h=hitTest(rc);if(h&&h.act==='HOLD'){HOLD.on=true;return}onHit(h)}else HOLD.on=false};
-    c.addEventListener('selectstart',()=>sel(true));c.addEventListener('selectend',()=>sel(false));dolly.add(c);
-    const g=renderer.xr.getControllerGrip(i);box(g,.05,.04,.14,MAT.steelDk,0,0,.03);dolly.add(g)}
+    const g=renderer.xr.getControllerGrip(i);const gl=makeGlove(i===1?1:-1);gl.g.rotation.set(-.35,0,(i===1?-1:1)*1.3);gl.g.position.set(0,-.01,.05);g.add(gl.g);g.userData.glove=gl;dolly.add(g);
+    c.addEventListener('connected',ev=>{const s=ev.data&&ev.data.handedness==='left'?-1:1;g.remove(gl.g);const n=makeGlove(s);n.g.rotation.set(-.35,0,-s*1.3);n.g.position.set(0,-.01,.05);g.add(n.g);g.userData.glove=n});
+    const sel=down=>{tmp.identity().extractRotation(c.matrixWorld);rc.ray.origin.setFromMatrixPosition(c.matrixWorld);rc.ray.direction.set(0,0,-1).applyMatrix4(tmp);const gv=g.userData.glove;if(gv)gv.set(down?.9:.2,down?.2:0);
+      if(down){if(xrGrab(i,g,rc))return;const h=hitTest(rc);if(h&&h.act==='HOLD'){HOLD.on=true;return}onHit(h)}else{xrRelease(i);HOLD.on=false}};
+    c.addEventListener('selectstart',()=>sel(true));c.addEventListener('selectend',()=>sel(false));c.addEventListener('squeezestart',()=>sel(true));c.addEventListener('squeezeend',()=>sel(false));dolly.add(c)}
   // tablero flotante con instructor + tarea
   const cv=document.createElement('canvas');cv.width=1024;cv.height=512;const tx=new THREE.CanvasTexture(cv);tx.encoding=THREE.sRGBEncoding;
   VRB={cv,tx,mesh:new THREE.Mesh(new THREE.PlaneGeometry(1.3,.65),new THREE.MeshBasicMaterial({map:tx,transparent:true}))};
@@ -214,7 +223,7 @@ async function enterXR(mode){
   if(!ok){toast(mode==='immersive-vr'?'Modo VR no disponible aquí. En las Quest, abre la versión publicada en su navegador.':'Modo AR no disponible aquí. Prueba en Chrome para Android con ARCore o en las Quest 3.');return}
   try{const s=await navigator.xr.requestSession(mode,{optionalFeatures:['local-floor']});renderer.xr.setReferenceSpaceType('local-floor');await renderer.xr.setSession(s);
     if(mode==='immersive-ar'){MODE.ar=true;sky.visible=false;ground.visible=false;world.scale.setScalar(.018);world.position.set(0,0,-1.4)}
-    else{dolly.position.copy(XRS.pos);dolly.rotation.y=XRS.yaw}
+    else{dolly.position.copy(XRS.pos);dolly.rotation.y=XRS.yaw;if(MODE.walk)dolly.position.copy(WALK.pos)}
   }catch(e){toast('No se pudo iniciar la sesión inmersiva: '+e.message)}}
 $('#btnVR').addEventListener('click',()=>enterXR('immersive-vr'));
 $('#btnAR').addEventListener('click',()=>enterXR('immersive-ar'));

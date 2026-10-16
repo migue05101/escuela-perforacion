@@ -24,6 +24,7 @@ function setNight(on){NIGHT=on;const u=sky.material.uniforms;u.top.value.set(on?
   if(on&&!nightLights.length){[[0,F+9,6],[10,9,-6],[-6,9,14],[0,F+20,-2]].forEach(p=>{const l=new THREE.PointLight(0xfff0d0,1.4,55,1.6);l.position.set(...p);scene.add(l);nightLights.push(l)})}
   nightLights.forEach(l=>l.visible=on);RIG.lamps.forEach(l=>l.material.emissiveIntensity=on?3:1.3)}
 function resetScene(){
+  exploreCleanup();if(MODE.console)consoleSeat(false);consoleReset();CS.run=false;MODE.noHand=false;MODE.onKey=null;MODE.use=null;camera.fov=55;camera.updateProjectionMatrix();
   restoreHome();clearTemp();setNight(false);
   RIG.mast.rotation.x=0;setBlock(10);
   for(const k in RIG.parts)RIG.parts[k].visible=true;

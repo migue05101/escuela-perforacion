@@ -9,7 +9,7 @@ cd "$(dirname "$0")"
   echo '<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>'
   echo '<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>'
   echo '<script>'; echo '"use strict";'
-  cat data.js engine.js models.js modules.js roles.js app.js | grep -v '^"use strict";$'
+  cat data.js engine.js models.js cabin.js well.js hands.js modules.js roles.js explore.js app.js | grep -v '^"use strict";$'
   echo '</script>'
   printf '</body>\n</html>\n'
 } > ../index.html

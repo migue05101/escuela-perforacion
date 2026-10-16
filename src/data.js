@@ -193,7 +193,8 @@ MODS.push(
  {id:'consola',n:'10',t:'Consola del perforador',d:'Perfora desde la cabina controlando peso sobre la broca, rotaria y bombas. Detecta la patada y cierra el pozo.',tag:'Perforador · Simulador',min:25,role:'perforador'},
  {id:'supervisor',n:'11',t:'Permiso, inspección y simulacro',d:'Revisa un permiso de trabajo en alturas, inspecciona el equipo buscando peligros y dirige un simulacro de patada.',tag:'Supervisor · Práctica',min:25,role:'supervisor'},
 );
-const COMMON=['hse','taladro','control','casos'];
+MODS.unshift({id:'recorrido',n:'00',t:'Recorrido libre',d:'Camina por toda la locación como en un videojuego: sube al piso, entra a la cabina, sube al encuelladero y baja por el pozo en corte.',tag:'Exploración · 1.ª persona',min:15});
+const COMMON=['recorrido','hse','taladro','control','casos'];
 const ROUTE={
  patio:{own:['patio','rigup'],prev:[]},
  cunero:{own:['cunero'],prev:['patio']},

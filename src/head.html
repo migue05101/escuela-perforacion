@@ -107,6 +107,14 @@ input[type=text],select{background:var(--bg);border:1px solid var(--line);color:
 .gauge .band{position:absolute;left:0;right:0;background:color-mix(in srgb,var(--ok) 70%,transparent)}
 .gauge .mark{position:absolute;left:-8px;right:-8px;height:3px;background:var(--accent);box-shadow:0 0 6px var(--accent)}
 .tip{position:absolute;pointer-events:none;background:var(--glass);color:#ebe6da;font-size:13px;padding:4px 8px;border-radius:5px;border:1px solid var(--accent);transform:translate(12px,12px);white-space:nowrap}
+.joy{position:absolute;left:calc(18px + env(safe-area-inset-left,0px));bottom:150px;width:120px;height:120px;border-radius:50%;background:rgba(16,22,27,.45);border:2px solid rgba(255,255,255,.25);touch-action:none;display:grid;place-items:center}
+.joyKnob{width:52px;height:52px;border-radius:50%;background:rgba(240,168,28,.85);box-shadow:0 2px 8px #0008;pointer-events:none}
+.useBtn{position:absolute;right:calc(18px + env(safe-area-inset-right,0px));bottom:160px;width:84px;height:84px;border-radius:50%;background:rgba(240,168,28,.9);color:var(--accent-ink);border:0;font-family:var(--display);font-size:20px;font-weight:700;text-transform:uppercase;box-shadow:0 4px 12px #0008}
+.prompt{position:absolute;left:50%;top:58%;transform:translateX(-50%);background:var(--glass);color:#ebe6da;border:1px solid var(--accent);padding:6px 12px;border-radius:6px;font-size:14px;pointer-events:none;white-space:nowrap}
+.cross{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;pointer-events:none;opacity:.55}
+.cross::before,.cross::after{content:"";position:absolute;background:#fff;box-shadow:0 0 2px #000}
+.cross::before{left:6px;top:0;width:2px;height:14px}.cross::after{top:6px;left:0;height:2px;width:14px}
+.cross.lock{opacity:.95}
 .fade{position:absolute;inset:0;background:#0b0f12;opacity:0;pointer-events:none;transition:opacity .35s}
 .fade.on{opacity:1}
 .list{display:grid;gap:8px;margin:10px 0}
@@ -248,6 +256,10 @@ input[type=text],select{background:var(--bg);border:1px solid var(--line);color:
         <div class="txt" id="subText">—</div>
       </div>
     </div>
+    <div class="joy" id="joy" hidden><div class="joyKnob" id="joyKnob"></div></div>
+    <button class="useBtn" id="useBtn" type="button" hidden>Usar</button>
+    <div class="prompt" id="prompt" hidden></div>
+    <div class="cross" id="cross" hidden></div>
     <div class="fade" id="fade"></div>
   </div>
   <aside id="panel"></aside>

@@ -13,7 +13,7 @@ async function doSeq(steps,st,o){
       if(steps.some(x=>x.k===v)||(o.others||[]).includes(v)){if(!o.guided)st.errs++;draw(`<div class="fb bad">${s.h}</div>`);await sayW('Ese paso no va todavía. '+s.h);continue}}
     task('');if(s.run)await s.run()}}
 function grp(pos,parent){const g=temp(new THREE.Group());g.position.copy(pos);(parent||world).add(g);return g}
-function bucket(pos,col,lbl){const g=grp(pos);cyl(g,.16,.13,.34,std(col,{roughness:.6}),0,.17,0,18);cyl(g,.15,.15,.02,MAT.mud,0,.3,0,18);box(g,.04,.32,.08,MAT.wood,.06,.42,0).rotation.z=-.3;proxy(g,.5,V(0,.25,0));if(lbl){const l=label3D(lbl,.4);l.position.y=.75;g.add(l)}return g}
+function bucket(pos,col,lbl){const g=grp(pos);cyl(g,.16,.13,.34,std(col,{roughness:.6}),0,.17,0,18);cyl(g,.15,.15,.02,MAT.mud,0,.3,0,18);box(g,.04,.32,.08,MAT.wood,.06,.42,0).rotation.z=-.3;proxy(g,.5,V(0,.25,0));if(lbl){const l=label3D(lbl,.2);l.position.y=.62;g.add(l)}return g}
 async function decide(eb,title,body,opts,st,good){
   const v=await ask(head(eb,title,body),opts);const o=opts.find(x=>x.v===v);
   if(v===good){say(o.f||'Correcto.');await ask(head(eb,title,body+`<div class="fb ok">${o.f||'Correcto.'}</div>`),[{t:'Continuar',v:'n'}]);return true}
@@ -234,74 +234,84 @@ async function modLodo(opt){
   await result(pts(st),`Peso 10,4 lpg · Viscosidad 45 s/cuarto. ${st.errs} error${st.errs===1?'':'es'}.`)}
 
 /* ===================================================================== PERFORADOR: CONSOLA */
+function glowCtl(ids){CTLS.forEach(c=>{c.glow=ids.includes(c.id)})}
+function untilC(fn){return w(new Promise(res=>{MODE.waitC=MODE.waitC||[];MODE.waitC.push({fn,res})}))}
 async function modConsola(opt){
-  const how=opt&&opt.practice?'practice':await startChoice('Consola del perforador','El instructor te explica los controles y lecturas de la consola. Luego perforas una unión y respondes a lo que pase en el pozo.');
-  const st={errs:0,hints:0};
-  RIG.driller.g.visible=false;RIG.string.visible=false;RIG.stand.visible=true;
-  const TOP0=F+1.0+9;const setDepth=d=>{setBlock(TOP0-d-.25-F+EOFF);placeStand()};setDepth(0);
-  insAt(V(-7.6,F,-.9));station(V(-7.0,F,-2.4),-Math.PI/2);
+  const how=opt&&opt.practice?'practice':await startChoice('Consola del perforador','El instructor te muestra la cabina: el joystick del malacate, la palanca de la rotaria, las bombas, las pantallas, el indicador de peso y el panel de control de pozo. Luego perforas y respondes a lo que pase en el pozo.');
+  const st={errs:0,hints:0};const pen=new Set();
+  consoleReset({kickEnabled:false});tripSetup();RIG.string.visible=true;RIG.slips.visible=false;consoleVisual();startAmbient();
+  $('#cams').hidden=true;insAt(V(-8.55,F,-1.25));RIG.ins.face=CAB.eye;
+  MODE.tick=dt=>{consoleSim(dt);if(MODE.waitC)MODE.waitC=MODE.waitC.filter(x=>{if(x.fn()){x.res();return false}return true})};
   if(how==='demo'){
-    lookFrom([-1,F+3.5,3.5],[-6.6,F+1.3,-2.4]);RIG.ins.point=V(-7.2,F+1.2,-2.4);
-    panel(head('Explicación','La consola del perforador','<ul class="steps"><li class="done"><b>Peso sobre la broca</b>: cuánto peso de la sarta se apoya en la broca (klb).</li><li class="done"><b>Rotaria</b>: velocidad de giro del top drive (RPM).</li><li class="done"><b>Bombas</b>: caudal de lodo y presión del tubo vertical.</li><li class="done"><b>Tanques y flujo de retorno</b>: las señales de una patada.</li></ul>'));
-    await sayW('Esta es la cabina del perforador. Desde aquí controlas el peso sobre la broca soltando el freno del malacate, la velocidad de la rotaria y las bombas de lodo.');
-    await sayW('Para perforar: primero enciendes las bombas, luego la rotaria, y después bajas hasta poner el peso del programa sobre la broca. Nunca rotes sin bombas.');
-    await sayW('Mientras perforas, vigila los tanques y el flujo de retorno. Si suben sin razón, o la broca de pronto avanza mucho más rápido, puede venir una patada. Ahí detienes todo y haces flow check.');RIG.ins.point=null}
-  $('#cams').hidden=true;await w(fade(()=>{fpMode(V(-7.2,F+1.8,-2.4),-Math.PI/2,-.2)}));
-  const S={pump:false,rpm:0,wob:0,d:0,gain:0,flow:0,kick:false,kickT:0,phase:'drill',step:0,warnRot:false,warnWob:false,ret:100,spin:0};
-  const PROC=[['stop','Detener la perforación: rotaria y peso a cero'],['up','Levantar la sarta del fondo'],['pumpoff','Apagar las bombas'],['flow','Observar el flujo (flow check)'],['close','Cerrar la preventora anular'],['record','Registrar SIDPP, SICP y ganancia']];
-  const DIST=[['more','Seguir perforando para terminar la unión'],['flowup','Aumentar el caudal de las bombas']];
-  const cls=(v,lo,hi)=>v<lo||v>hi?'warn':'ok';const PLIST=shuffle(PROC.concat(DIST)).map(([v,t])=>({t,v}));
-  const readout=()=>`<div class="ind" id="cons">
-    <div class="${S.pump?'ok':'warn'}"><small>Bombas</small><b>${S.pump?'600 gpm':'Apagadas'}</b></div>
-    <div class="${S.phase==='drill'?cls(S.rpm,100,120):'ok'}"><small>Rotaria</small><b>${S.rpm} RPM</b></div>
-    <div class="${S.phase==='drill'?cls(S.wob,16,20):'ok'}"><small>Peso sobre broca</small><b>${S.wob} klb</b></div>
-    <div class="ok"><small>Peso en gancho</small><b>${180-S.wob} klb</b></div>
-    <div class="${S.pump?'ok':'warn'}"><small>Presión de bomba</small><b>${S.pump?2150:0} psi</b></div>
-    <div class="${S.ret>105?'bad':'ok'}"><small>Flujo de retorno</small><b>${S.pump||S.kick?Math.round(S.ret):0} %</b></div>
-    <div class="${S.gain>1?'bad':'ok'}"><small>Tanques</small><b>${(182+S.gain).toFixed(1).replace('.',',')} bbl</b></div>
-    <div class="ok"><small>Unión perforada</small><b>${S.d.toFixed(1).replace('.',',')} / 9,0 m</b></div></div>`;
-  const draw=fb=>{const c=[{t:S.pump?'Apagar bombas':'Encender bombas',v:'pump'},{t:'Rotaria −10',v:'rpm-'},{t:'Rotaria +10',v:'rpm+'},{t:'Peso −2',v:'wob-'},{t:'Peso +2',v:'wob+'}];
-    const proc=S.phase!=='drill'||S.kick?PLIST:[];
-    panel(head('Consola del perforador',S.phase==='drill'?'Perfora la unión':'Responde al pozo',meterHTML(st)+readout()+(S.phase==='drill'&&!S.kick?'<p class="muted" style="font-size:13px">Programa: bombas encendidas, rotaria 100–120 RPM, peso sobre broca 16–20 klb.</p>':'')+(fb||'')+
-      `<div class="row">${c.map(x=>`<button class="btn sm" type="button" data-in="${x.v}">${x.t}</button>`).join('')}</div>`+(proc.length?`<div class="eyebrow" style="margin-top:14px">Acciones de control</div>${optsHTML(proc)}`:'')));
-    setButtons(c.concat(proc))};
-  let fbMsg='';draw();task('Enciende bombas, rotaria y pon peso sobre la broca');
-  if(how==='demo')await sayW('Empieza: enciende las bombas, sube la rotaria a ciento diez y pon dieciocho mil libras sobre la broca.');
-  let kickStart=0,elapsed=0,lastDraw=0;
-  MODE.tick=dt=>{elapsed+=dt;
-    const inBand=S.pump&&S.rpm>=100&&S.rpm<=120&&S.wob>=16&&S.wob<=20;
-    if(S.phase==='drill'){
-      if(S.rpm>0&&!S.pump&&!S.warnRot){S.warnRot=true;st.errs++;fbMsg='<div class="fb bad">Rotar sin bombas puede pegar la sarta: primero las bombas.</div>';say('Cuidado: nunca rotes sin bombas.');draw(fbMsg)}
-      if(S.wob>26&&!S.warnWob){S.warnWob=true;st.errs++;fbMsg='<div class="fb bad">Demasiado peso: se daña la broca y se pandea la sarta.</div>';say('Demasiado peso sobre la broca.');draw(fbMsg)}
-      if(S.wob<=26)S.warnWob=false;if(S.pump||S.rpm===0)S.warnRot=false;
-      const rate=(S.kick?2.5:1)*(inBand?.32:(S.pump&&S.rpm>0&&S.wob>0?.12:0));S.d=Math.min(9,S.d+rate*dt);setDepth(S.d);
-      if(!S.kick&&S.d>=5.2){S.kick=true;kickStart=elapsed;draw()}
-      if(S.d>=9&&!S.kick)dispatch('JOINT')}
-    if(S.kick&&S.step<5){S.gain+=dt*(S.step>=4?0:.16);S.ret=S.pump?100+Math.min(25,S.gain*4):(S.step>=3?40+S.gain*5:0);if(S.gain>1.2)MODE.alarm=true;
-      if(S.step===0&&elapsed-kickStart>22&&!S.late){S.late=true;st.errs++;fbMsg='<div class="fb bad">Reacción tardía: los tanques llevan rato subiendo.</div>';draw(fbMsg);say('Estás reaccionando tarde. Los tanques están subiendo.')}}
-    if(S.rpm>0){S.spin+=dt*S.rpm/60*6.28;RIG.stand.rotateY(S.spin)}
-    if(elapsed-lastDraw>.25){lastDraw=elapsed;const e=$('#cons');if(e)e.outerHTML=readout()}};
-  for(;;){const v=await w(waitInput());
-    if(v==='pump'){S.pump=!S.pump;if(!S.pump&&S.rpm>0&&S.phase==='drill'&&!S.kick){st.errs++;say('Apagaste las bombas con la rotaria girando.')}if(S.kick&&S.step===2&&!S.pump){S.step=3;say('Bombas apagadas.')}draw();continue}
-    if(v==='rpm-'||v==='rpm+'){S.rpm=clamp(S.rpm+(v==='rpm+'?10:-10),0,180);draw();continue}
-    if(v==='wob-'||v==='wob+'){S.wob=clamp(S.wob+(v==='wob+'?2:-2),0,40);draw();continue}
-    if(v==='JOINT'){continue}
-    const order=['stop','up','pumpoff','flow','close','record'];
-    if(order.includes(v)||v==='more'||v==='flowup'){
-      if(!S.kick){draw('<div class="fb info">Por ahora la perforación va normal. Esa acción no hace falta todavía.</div>');continue}
-      if(v==='more'||v==='flowup'){st.errs++;draw('<div class="fb bad">Con señales de patada no se sigue perforando ni se aumenta el caudal: se detiene y se verifica.</div>');await sayW('No. Con señales de patada, se detiene y se verifica el pozo.');continue}
-      const exp=order[S.step];
-      if(v!==exp){st.errs++;const H={stop:'Primero detén la perforación: rotaria y peso a cero.',up:'Levanta la sarta del fondo hasta tener la unión sobre la mesa.',pumpoff:'Apaga las bombas para observar el flujo.',flow:'Haz el flow check: observa si el pozo fluye con las bombas apagadas.',close:'El pozo fluye: ciérralo con la preventora anular.',record:'Registra las presiones de cierre y la ganancia.'};draw(`<div class="fb bad">${H[exp]}</div>`);await sayW('Ese no es el paso. '+H[exp]);continue}
-      if(v==='stop'){S.rpm=0;S.wob=0;S.phase='well';say('Perforación detenida.')}
-      if(v==='up'){const d0=S.d;await w(tweenP(1.8,p=>{setDepth(d0-p*3)}));S.d=d0-3;say('Sarta fuera del fondo.')}
-      if(v==='pumpoff'){S.pump=false;say('Bombas apagadas.')}
-      if(v==='flow'){RIG.fx.spray=.4;await sayW('Flow check: con las bombas apagadas, el pozo sigue fluyendo. Es una patada.')}
-      if(v==='close'){await w(tweenP(1.2,p=>RIG.annular.material.color.setRGB(lerp(.43,.03,p),lerp(.02,.2,p),lerp(.012,.04,p))));RIG.fx.spray=0;MODE.alarm=false;say('Preventora anular cerrada.')}
-      if(v==='record'){S.step=6;draw('<div class="fb ok">SIDPP 350 psi · SICP 520 psi · Ganancia '+S.gain.toFixed(1).replace('.',',')+' bbl.</div>');await sayW('Registraste las presiones de cierre y la ganancia. Ahora informas al supervisor.');break}
-      S.step++;draw();continue}}
-  MODE.tick=null;task('');
-  await sayW(`Pozo cerrado con una ganancia de ${S.gain.toFixed(1).replace('.',',')} barriles. Mientras más rápido reacciones, menor la ganancia y más fácil el control.`);
-  await result(pts(st),`Ganancia al cierre: ${S.gain.toFixed(1).replace('.',',')} bbl. ${st.errs} error${st.errs===1?'':'es'}.`)}
+    CS.run=true;drawScreens();
+    const shot=async(pos,tgt,ids,t)=>{glowCtl(ids||[]);RIG.ins.point=tgt;w(cineTo(pos,tgt,1.8,false));await sayW(t)};
+    panel(head('Explicación','La cabina del perforador','<p>Sillón con mandos en los apoyabrazos, tres pantallas de perforación, instrumentos analógicos de respaldo y el panel de control de pozo.</p>')+'<button class="btn" type="button" data-in="skip">Saltar explicación</button>');
+    const sk=waitInput();
+    const tour=(async()=>{
+      await shot(V(-8.9,F+1.9,-1.2),V(-7.2,F+1.1,-2.65),[],'Esta es la cabina del perforador. Desde este sillón se controla toda la perforación. Mira por el ventanal: tienes vista directa a la mesa rotaria y al mástil.');
+      const g=k=>ctlGrip(CAB.ctl[k]);
+      await shot(g('dw').clone().add(V(-.55,.45,-.35)),g('dw'),['dw'],'El joystick del apoyabrazos izquierdo maneja el malacate. Hacia adelante baja la sarta y hacia atrás la sube. Si lo sueltas vuelve al centro y el freno sostiene toda la carga.');
+      await shot(g('auto').clone().add(V(-.5,.42,-.3)),g('auto'),['auto','wobSet'],'El botón verde AUTO activa el autoperforador: baja la sarta solo, manteniendo el peso sobre la broca que marques con la perilla.');
+      await shot(g('rpm').clone().add(V(-.55,.45,.35)),g('rpm'),['rpm'],'En el apoyabrazos derecho, la palanca azul controla la rotaria del top drive, en revoluciones por minuto.');
+      await shot(g('p1').clone().add(V(-.5,.45,.4)),g('p1'),['p1','p2'],'Las perillas rojas controlan las dos bombas de lodo, en emboladas por minuto. Y el botón rojo grande es la parada de emergencia.');
+      await shot(V(-7.75,F+1.25,-2.65),V(-6.78,F+1.1,-2.65),[],'Las tres pantallas: a la izquierda los parámetros de perforación, en el centro el lodo y las bombas, donde ves los tanques y el flujo de retorno, y a la derecha las tendencias y alarmas.');
+      await shot(V(-7.5,F+1.6,-2.65),V(-5.95,F+2.3,-2.65),[],'Arriba, sobre el ventanal, está el indicador de peso analógico. La aguja negra marca el peso en el gancho y la roja el peso sobre la broca. Si las pantallas fallan, este instrumento sigue funcionando.');
+      await shot(V(-8.1,F+1.6,-2.0),CAB.bopG.localToWorld(V(0,1,.1)),['master','ann','rams','hcr'],'A tu derecha, el panel de control de pozo. Para cerrar una preventora se presiona MAESTRO y luego la función, así se evita un cierre accidental. Sus manómetros muestran la presión de la tubería y del revestimiento con el pozo cerrado.');
+      RIG.ins.point=null;glowCtl([])})();
+    const rr=await w(Promise.race([tour.then(()=>'done'),sk]));glowCtl([]);RIG.ins.point=null;
+    if(rr==='skip'){openModule(MODE.id,{practice:true});return}
+    await sayW('Ahora te sientas tú. Vamos a perforar.')}
+  // ---------- práctica ----------
+  consoleReset({kickEnabled:false});
+  await w(fade(()=>{consoleSeat(true);RIG.ins.face=CAB.eye}));
+  const STEPS=['Encender las bombas (≈ 85 epm cada una)','Arrancar la rotaria a 100–120 RPM','Bajar la sarta y tocar fondo despacio','Poner 16–20 klb sobre la broca','Perforar vigilando tanques y flujo'];
+  let cur=0;const T0={};
+  const dr=(fb='')=>panel(head('Consola del perforador',cur<STEPS.length?STEPS[cur]:'¡Atención al pozo!',meterHTML(st)+stepsHTML(STEPS,cur)+fb+
+    `<p class="muted" style="font-size:13px">Agarra los mandos con la mano y arrástralos. En el computador también puedes usar ↑ ↓ para el malacate. Gira la vista arrastrando fuera de los mandos.</p><button class="btn sm ghost" type="button" data-in="HINT">Pista</button>`));
+  const HINT={0:'Gira las perillas rojas del apoyabrazos derecho: arrástralas hacia la derecha hasta unas ochenta y cinco emboladas cada una.',1:'Empuja la palanca azul hacia adelante hasta que la rotaria marque entre cien y ciento veinte.',2:'Empuja el joystick izquierdo hacia adelante para bajar. Cuando falte poco para el fondo, empuja suave.',3:'Sigue bajando poco a poco hasta que el peso sobre la broca marque entre dieciséis y veinte, o presiona AUTO.',4:'Vigila la pantalla central: volumen de tanques y flujo de retorno.'};
+  const GL={0:['p1','p2'],1:['rpm'],2:['dw'],3:['dw','auto','wobSet'],4:[]};
+  // eventos de la simulación → errores
+  const evLoop=()=>{while(CS.ev.length){const e=CS.ev.shift();const P={impact:'Golpeaste el fondo con la broca. Al acercarte al fondo baja despacio.',crown:'Casi chocas el bloque contra la corona. Vigila la posición del bloque.',nopump:'Estás rotando sin bombas. Primero se circula, después se rota.',stall:'El top drive se frenó por exceso de peso. Mantén el peso en el rango del programa.',pumpclosed:'Estás bombeando contra el pozo cerrado: puedes fracturar la formación. Apaga las bombas.'}[e];
+    if(P&&!(e==='crown'&&pen.has('crown'))){st.errs++;pen.add(e);say(P);dr(`<div class="fb bad">${P}</div>`)}}};
+  setInterval&&(MODE.evI=setInterval(()=>{if(!MODE.console){clearInterval(MODE.evI);return}evLoop()},250));
+  const stable=(fn,secs)=>{let t=0,last=performance.now();return()=>{const n=performance.now(),d=(n-last)/1000;last=n;t=fn()?t+d*SPEED:0;return t>=secs}};
+  const step=async(i,txt,cond)=>{cur=i;dr();glowCtl(GL[i]);task(STEPS[i]);
+    if(how==='demo'||i<2)say(txt);
+    await untilC(cond);glowCtl([])};
+  // pistas
+  const hintLoop=async()=>{for(;;){const v=await w(waitInput());if(v==='HINT'){st.hints++;glowCtl(GL[Math.min(cur,4)]);await sayW(HINT[Math.min(cur,4)])}}};
+  hintLoop().catch(()=>{});
+  await step(0,'Primero enciende las bombas de lodo. Gira las dos perillas rojas hasta unas ochenta y cinco emboladas por minuto.',stable(()=>CS.flowIn>=520&&CS.flowIn<=690,1.2));
+  say('Bien, circulación establecida: unos seiscientos galones por minuto.');
+  await step(1,'Ahora arranca la rotaria: empuja la palanca azul hasta ciento diez RPM.',stable(()=>CS.rpm>=100&&CS.rpm<=120,1.2));
+  await step(2,'Baja la sarta con el joystick del malacate hasta tocar fondo. Despacio al llegar.',()=>CS.wob>=2);
+  await step(3,'Pon entre dieciséis y veinte mil libras sobre la broca. Puedes hacerlo a mano o activar el autoperforador.',stable(()=>CS.wob>=16&&CS.wob<=20&&CS.rop>0,2.5));
+  say('Excelente, estás perforando. Mantén los parámetros y vigila tanques y flujo de retorno.');
+  cur=4;dr();task('Perfora y vigila los tanques');CS.kickEnabled=true;CS.kickAt=Math.max(1.6,CS.hole-CS.start+2.2);
+  await untilC(()=>CS.kick);
+  // ---------- patada: el aprendiz debe detectarla ----------
+  const t={};let hinted=false,late=false;cur=5;
+  const PROC=['Detener la rotaria y quitar el peso','Levantar la sarta del fondo (≥ 1,5 m)','Apagar las bombas','Observar el flujo (flow check)','Cerrar el pozo (MAESTRO + ANULAR)','Leer las presiones de cierre'];
+  const drK=(fb='')=>panel(head('Consola del perforador','Responde al pozo',meterHTML(st)+stepsHTML(PROC,PROC.findIndex((_,i)=>!t['s'+i]))+fb+`<button class="btn sm ghost" type="button" data-in="HINT">Pista</button>`));
+  await untilC(()=>{const k=CS.kickT;
+    if(!t.s0&&!t.s1&&k>14&&!hinted){hinted=true;st.hints++;say('Revisa la pantalla central. ¿Qué está pasando con los tanques y el flujo de retorno?');drK()}
+    if(!t.s0&&!t.s1&&k>28&&!late){late=true;st.errs++;say('Estás reaccionando tarde. Los tanques llevan rato subiendo.');drK('<div class="fb bad">Reacción tardía.</div>')}
+    if(!t.s0&&CS.rpm<5&&CS.wob<1.5){t.s0=k;say('Rotaria detenida.');drK()}
+    if(!t.s1&&CS.hole-CS.bit>=1.5){t.s1=k;say('Sarta fuera del fondo.');drK()}
+    if(!t.s2&&CS.flowIn<5){t.s2=k;if(!t.s1){st.errs++;say('Apagaste las bombas con la broca en el fondo: riesgo de pegar la sarta. Primero se levanta.');drK('<div class="fb bad">Primero levanta la sarta, luego apaga las bombas.</div>')}else{say('Bombas apagadas. Ahora observa el flujo de retorno.');drK()}}
+    if(t.s2&&t.s1&&!t.s3&&CS.rpm<5){if(t.fc==null)t.fc=k;if(k-t.fc>3.2&&CS.flowOut>8){t.s3=k;say('Flow check positivo: con las bombas apagadas el pozo sigue fluyendo. Es una patada. Cierra el pozo.');drK();glowCtl(['master','ann'])}}
+    if(!t.s4&&(CS.annular||CS.rams)){t.s4=k;glowCtl([]);const bad=[];if(CS.rpm>5)bad.push('cerraste con la tubería rotando');if(CS.bit>=CS.hole-.3)bad.push('cerraste con la broca en el fondo');if(CS.flowIn>20)bad.push('cerraste con las bombas encendidas');
+      if(bad.length){st.errs+=bad.length;say('Pozo cerrado, pero '+bad.join(' y ')+'.');drK(`<div class="fb bad">Pozo cerrado, pero ${bad.join(' y ')}.</div>`)}else{say('Pozo cerrado. Espera a que las presiones se estabilicen.');drK()}}
+    return !!t.s4});
+  const gainAt=CS.gain,react=t.s0!=null?Math.min(t.s0,t.s1||99):(t.s1||CS.kickT);
+  await untilC(stable(()=>Math.abs(CS.sidpp-350)<12&&Math.abs(CS.sicp-520)<15,1.5));
+  glowCtl([]);fpLook(-Math.PI/2-1.05,-.5);task('Lee los manómetros del panel de control de pozo');
+  await decide('Presiones de cierre','Lee los manómetros del panel de control de pozo','<p>Mira a tu derecha, el panel azul: el manómetro <b>TUBERÍA</b> es la presión de cierre en la tubería (SIDPP) y <b>REVEST.</b> la del revestimiento (SICP).</p>',
+    shuffle([{t:'SIDPP 350 psi · SICP 520 psi',v:'ok',f:'Correcto. Con la SIDPP se calcula el peso del lodo para matar el pozo.'},{t:'SIDPP 520 psi · SICP 350 psi',v:'x',f:'Están invertidas: TUBERÍA marca 350 y REVEST. marca 520.'},{t:'SIDPP 3.500 psi · SICP 5.200 psi',v:'y',f:'Fíjate en la escala del manómetro: va de 0 a 2.000 psi.'}]),st,'ok');
+  t.s5=1;clearInterval(MODE.evI);evLoop();
+  const gpen=gainAt>6?Math.round((gainAt-6)*4):0;
+  await sayW(`Pozo cerrado con ${fmt(gainAt,1)} barriles de ganancia. Mientras más rápido reacciones, más pequeño es el influjo y más fácil el control.`);
+  await result(Math.max(0,100-st.errs*8-st.hints*3-gpen),`Ganancia al cierre: ${fmt(gainAt,1)} bbl · Reacción: ${Math.round(react)} s · ${st.errs} error${st.errs===1?'':'es'}, ${st.hints} pista${st.hints===1?'':'s'}.`)}
 
 /* ===================================================================== SUPERVISOR */
 async function modSupervisor(opt){

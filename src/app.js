@@ -40,7 +40,7 @@ async function checkPlatforms(){const base=['Celular','Tablet','Computador'].map
   $('#platforms').innerHTML=base.concat(vr,ar).join('')}
 function complete(id,score){const p=prof();const m=p.mods[id]||(p.mods[id]={});const prev=m.best;m.best=Math.max(prev||0,score);m.last=score;m.tries=(m.tries||0)+1;save();return{prev,best:m.best}}
 
-const SCRIPTS={hse:modHSE,taladro:modTaladro,rigup:modRigup,encuelle:modEncuelle,control:modControl,casos:modCasos,patio:modPatio,cunero:modCunero,lodo:modLodo,consola:modConsola,supervisor:modSupervisor};
+const SCRIPTS={recorrido:modRecorrido,hse:modHSE,taladro:modTaladro,rigup:modRigup,encuelle:modEncuelle,control:modControl,casos:modCasos,patio:modPatio,cunero:modCunero,lodo:modLodo,consola:modConsola,supervisor:modSupervisor};
 function openModule(id,opt){
   const m=MODS.find(x=>x.id===id);show('s-mod');$('#modTitle').textContent=`${m.n} · ${m.t}`;
   initEngine();resize();if(!RIG.home)saveHome();
@@ -59,7 +59,7 @@ function tick(){
   for(const tw of TW.slice()){tw.t+=dt;const p=Math.min(1,tw.t/tw.dur);tw.fn(ease(p));if(p>=1){const i=TW.indexOf(tw);if(i>=0)TW.splice(i,1);tw.done&&tw.done()}}
   if(MODE.tick)MODE.tick(dt);
   const I=RIG.ins;I.talk=NAR.speaking;if(talkWas!==I.talk){talkWas=I.talk;$('#talkDot').classList.toggle('on',I.talk)}
-  insFace(dt);animatePeople(dt,T);updateLines();updateFX(dt);updateBubbles(dt);
+  insFace(dt);animatePeople(dt,T);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);
   const k=.5+.5*Math.sin(T*5);
   for(const o of INTER){const h=o.userData.hot,a=h?.35+.65*k:.06+.1*k;o.traverse(m=>{if(m.isMesh)emis(m,.94*a,.62*a,.1*a)})}
   RIG.beacons.forEach((b,i)=>b.material.emissive.setHex(MODE.alarm&&((T*4|0)%2===i)?b.userData.c:0));
@@ -76,7 +76,7 @@ function tick(){
   if(!renderer.xr.isPresenting&&I.g.visible&&pip.offsetWidth){const r=pip.getBoundingClientRect(),c=cv.getBoundingClientRect();
     const x=r.left-c.left+2,y=c.bottom-r.bottom+2,w=r.width-4,h=r.height-4;
     I.head.getWorldPosition(hv);const yaw=I.g.rotation.y;const pc=RIG.pipCam;const oy=I.pipOff||0;pc.position.set(hv.x+Math.sin(yaw)*.95,hv.y+oy+.06,hv.z+Math.cos(yaw)*.95);pc.lookAt(hv.x,hv.y+oy-.1,hv.z);pc.aspect=w/h;pc.updateProjectionMatrix();
-    if(I.mouth)I.mouth.visible=true;renderer.setViewport(x,y,w,h);renderer.setScissor(x,y,w,h);renderer.setScissorTest(true);renderer.setClearColor(0x2a3640,1);renderer.clear();renderer.render(scene,pc);renderer.setScissorTest(false);renderer.setClearColor(0x000000,0)}
+    if(I.mouth)I.mouth.visible=true;const hs=FPH&&FPH.show;if(FPH){FPH.h.g.visible=FPH.sl.visible=FPH.band.visible=false}renderer.setViewport(x,y,w,h);renderer.setScissor(x,y,w,h);renderer.setScissorTest(true);renderer.setClearColor(0x2a3640,1);renderer.clear();renderer.render(scene,pc);renderer.setScissorTest(false);if(FPH&&hs){FPH.h.g.visible=FPH.sl.visible=FPH.band.visible=true}renderer.setClearColor(0x000000,0)}
 }
 
 if(prof())openHub();else{renderLogin();show('s-login')}

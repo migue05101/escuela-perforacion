@@ -4,6 +4,13 @@ Prototipo de capacitación en 3D para personal nuevo de taladros de perforación
 
 Un instructor con voz (Ing. Ramiro Cárdenas) acompaña cada módulo, explica y muestra una demostración antes de cada práctica.
 
+## Primera persona y recorrido libre
+
+- **Mano y brazo en primera persona**: guante de impacto y manga del overol con cinta reflectiva. En el computador siguen al ratón, en celular y tableta al dedo, y en las Meta Quest los guantes siguen a los controles.
+- **Mandos que se agarran**: joystick del malacate, palanca de rotaria, perillas de bombas y botones se arrastran con la mano (o con el control en VR).
+- **00 · Recorrido libre**: caminar por toda la locación como en un videojuego (W A S D y Shift en el computador, joystick en pantalla en celular, palancas en las Quest). Se puede subir al piso por la escalera o la planchada, entrar a la cabina y sentarse en la consola, subir al encuelladero por la escalera y bajar por el pozo en corte hasta la broca.
+- **Cabina del perforador**: sillón con mandos en los apoyabrazos, tres pantallas (parámetros, lodo y bombas, tendencias y alarmas), indicador de peso analógico, manómetros y panel de control de pozo (MAESTRO + función). La simulación calcula peso sobre la broca, ROP, torque, presión de bomba, flujo de retorno y volumen de tanques.
+
 ## Rutas por cargo
 
 Cada aprendiz elige su cargo. El panel muestra el **tronco común** para todo el personal, las prácticas propias de **su cargo**, un repaso del **cargo anterior** y los demás cargos para quien quiera prepararse para ascender. Los casos simulados cambian según el cargo: la misma patada se vive distinto desde el patio, la mesa, el encuelladero, la consola o la supervisión.
@@ -35,6 +42,6 @@ En las Meta Quest: abrir ese enlace en el navegador de las gafas y tocar **VR** 
 
 ## Código
 
-El sitio es un solo `index.html`. Las partes editables están en `src/` (`data.js` contenidos, `engine.js` motor, `models.js` modelos 3D, `modules.js` guiones de los módulos comunes, `roles.js` prácticas por cargo, `app.js` perfiles, panel y bucle). Después de editar, ejecutar `sh src/build.sh` para regenerar `index.html`.
+El sitio es un solo `index.html`. Las partes editables están en `src/` (`data.js` contenidos, `engine.js` motor, `models.js` modelos 3D, `modules.js` guiones de los módulos comunes, `roles.js` prácticas por cargo, `cabin.js` cabina y simulador de perforación, `hands.js` mano en primera persona, mandos y sonido, `explore.js` recorrido libre, `well.js` pozo en corte, `app.js` perfiles, panel y bucle). Después de editar, ejecutar `sh src/build.sh` para regenerar `index.html`.
 
 Los procedimientos son esquemas generales de referencia: antes de uso formal deben validarse con el instructor HSE, el procedimiento escrito de cada equipo y la certificación correspondiente (IWCF / IADC WellSharp, curso de alturas vigente).
