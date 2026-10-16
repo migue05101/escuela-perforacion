@@ -47,7 +47,7 @@ function openModule(id,opt){
   newCtx();MODE={id};resetScene();panel('');
   run(()=>SCRIPTS[id](opt));
 }
-function backToHub(){newCtx();MODE={};if(RIG.home)resetScene();openHub()}
+function backToHub(){ROAMRET=null;newCtx();MODE={};if(RIG.home)resetScene();openHub()}
 $('#backHub').addEventListener('click',backToHub);
 document.querySelectorAll('[data-cam]').forEach(b=>b.addEventListener('click',()=>{const c={general:[[44,30,52],[0,16,0]],piso:[[9,F+4,10],[0,F+.8,0]],encuelladero:[[6,F+MONK+3,8],[-.4,F+MONK+.5,1.3]],bop:[[4.6,1.8,5],[0,1.3,0]]}[b.dataset.cam];if(CAM.mode!=='fp')lookFrom(c[0],c[1])}));
 
@@ -59,7 +59,7 @@ function tick(){
   for(const tw of TW.slice()){tw.t+=dt;const p=Math.min(1,tw.t/tw.dur);tw.fn(ease(p));if(p>=1){const i=TW.indexOf(tw);if(i>=0)TW.splice(i,1);tw.done&&tw.done()}}
   if(MODE.tick)MODE.tick(dt);
   const I=RIG.ins;I.talk=NAR.speaking;if(talkWas!==I.talk){talkWas=I.talk;$('#talkDot').classList.toggle('on',I.talk)}
-  insFace(dt);animatePeople(dt,T);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);
+  insFace(dt);animatePeople(dt,T);updateCut(dt);detailTick(dt);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);
   const k=.5+.5*Math.sin(T*5);
   for(const o of INTER){const h=o.userData.hot,a=h?.35+.65*k:.06+.1*k;o.traverse(m=>{if(m.isMesh)emis(m,.94*a,.62*a,.1*a)})}
   RIG.beacons.forEach((b,i)=>b.material.emissive.setHex(MODE.alarm&&((T*4|0)%2===i)?b.userData.c:0));

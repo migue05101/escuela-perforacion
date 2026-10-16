@@ -85,7 +85,7 @@ function buildWorld(){
   const gm=std(0xffffff,{map:TEX.grass,roughness:1,metalness:0}),pm=std(0xffffff,{map:TEX.gravel,roughness:1,metalness:0});
   rectHole(ground,-700,700,-700,700,1.85,-.02,gm,9);
   pad=rectHole(ground,-42,46,-52,54,1.85,.01,pm,5);
-  buildSite();buildCellar();buildBOP();buildSub();buildFloor();buildDrawworks();buildDoghouse();buildMast();buildMud();buildRacks();buildTools();buildCrew();buildCrane();buildInstructor();buildWell();buildFX();
+  buildSite();buildCellar();buildBOP();buildSub();buildFloor();buildDrawworks();buildDoghouse();buildMast();buildMud();buildRacks();buildTools();buildCrew();buildCrane();buildInstructor();buildWell();buildFX();buildDetails();
   world.traverse(o=>{if(o.isMesh){if(o.castShadow===false)return;o.castShadow=true;o.receiveShadow=true}});
   ground.traverse(o=>{if(o.isMesh)o.castShadow=false});
   // materiales propios por componente (para resaltarlos sin afectar a los demás)

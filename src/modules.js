@@ -24,6 +24,7 @@ function setNight(on){NIGHT=on;const u=sky.material.uniforms;u.top.value.set(on?
   if(on&&!nightLights.length){[[0,F+9,6],[10,9,-6],[-6,9,14],[0,F+20,-2]].forEach(p=>{const l=new THREE.PointLight(0xfff0d0,1.4,55,1.6);l.position.set(...p);scene.add(l);nightLights.push(l)})}
   nightLights.forEach(l=>l.visible=on);RIG.lamps.forEach(l=>l.material.emissiveIntensity=on?3:1.3)}
 function resetScene(){
+  if(CUT.g&&CUT.on)setCutaway(false);
   exploreCleanup();if(MODE.console)consoleSeat(false);consoleReset();CS.run=false;MODE.noHand=false;MODE.onKey=null;MODE.use=null;camera.fov=55;camera.updateProjectionMatrix();
   restoreHome();clearTemp();setNight(false);
   RIG.mast.rotation.x=0;setBlock(10);
@@ -57,8 +58,8 @@ async function result(score,detail){
   say(ok?`Aprobaste con ${score} puntos. Buen trabajo.`:`Obtuviste ${score} puntos. Necesitas ${PASS} para aprobar. Repasa y vuelve a intentarlo.`);
   const v=await ask(`<div class="eyebrow">Resultado</div><div class="score mono" style="color:var(${ok?'--ok':'--bad'})">${score}</div>
     <p><span class="chip ${ok?'ok':'bad'}">${ok?'Aprobado':'No aprobado'}</span> <span class="muted">Mínimo ${PASS} · Mejor: ${best}${prev!=null&&score>prev?' (nuevo récord)':''}</span></p>${detail?`<p class="muted">${detail}</p>`:''}`,
-    [{t:'Repetir el módulo',v:'retry'},{t:'Volver a los módulos',v:'hub'}]);
-  if(v==='retry')openModule(MODE.id);else backToHub()}
+    [{t:'Repetir el módulo',v:'retry'}].concat(ROAMRET?[{t:'Volver al recorrido libre',v:'roam'}]:[],[{t:'Volver a los módulos',v:'hub'}]));
+  if(v==='retry')openModule(MODE.id,ROAMRET?ROAMRET.opt:undefined);else if(v==='roam'){const r=ROAMRET;ROAMRET=null;openModule('recorrido',{resume:r})}else backToHub()}
 async function startChoice(title,txt){return ask(head('Cómo empezar',title,`<p>${txt}</p>`),[{t:'Ver la explicación y la demostración (recomendado)',v:'demo'},{t:'Ir directo a la práctica',v:'practice'}])}
 
 /* ===================================================================== 1 · HSE */
@@ -145,7 +146,7 @@ async function modTaladro(){
   const draw=()=>{const p=cur&&PARTS[cur];panel(head(`Recorrido · ${seen.size} de ${keys.length} vistos`,p?p.n:'Recorre el equipo',
     `<p class="${p?'':'muted'}">${p?'Escucha al instructor. Puedes girar la cámara mientras habla.':'Toca un componente en la escena o elígelo en la lista. El instructor va hasta allá y te lo explica.'}</p>
     <div class="chips">${keys.map(k=>`<button class="pchip ${k===cur?'on':seen.has(k)?'seen':''}" type="button" data-in="p:${k}">${PARTS[k].n}</button>`).join('')}</div>
-    <div class="row"><button class="btn" type="button" data-in="tour">Recorrido guiado completo</button><button class="btn ${seen.size>=6?'primary':''}" type="button" data-in="quiz">Iniciar evaluación</button></div>
+    <div class="row"><button class="btn ${CUT.on?'primary':''}" type="button" data-in="cut">${CUT.on?'Ocultar el corte del subsuelo':'Ver el pozo en corte bajo el taladro'}</button></div>${CUT.on?'<div class="chips" style="margin-top:8px"><button class="pchip" type="button" data-in="cv:top">Contrapozo</button><button class="pchip" type="button" data-in="cv:mid">Formaciones</button><button class="pchip" type="button" data-in="cv:bit">Broca</button><button class="pchip" type="button" data-in="cv:sup">Superficie</button></div>':''}<div class="row" style="margin-top:8px"><button class="btn" type="button" data-in="tour">Recorrido guiado completo</button><button class="btn ${seen.size>=6?'primary':''}" type="button" data-in="quiz">Iniciar evaluación</button></div>
     ${seen.size<6?'<p class="muted" style="font-size:13px;margin-top:8px">Recomendado: conoce al menos 6 componentes antes de la evaluación.</p>':''}`))};
   const explain=async k=>{const id=++EXP;cur=k;seen.add(k);draw();highlight(k);const p=PARTS[k];
     const st=WP(p.st);if(RIG.ins.g.position.distanceTo(st)<14)insWalk(st);else insAt(st);RIG.ins.point=WP(p.tgt);
@@ -155,6 +156,8 @@ async function modTaladro(){
   await sayW('Bienvenido al taladro. Toca cualquier componente, o elígelo en la lista, y te explico para qué sirve. Si prefieres, te doy el recorrido completo.');
   for(;;){const v=await w(waitInput());
     if(v.startsWith('p:')){explain(v.slice(2)).catch(e=>{if(e!==ABORT)console.error(e)});continue}
+    if(v==='cut'){setCutaway(!CUT.on);draw();if(CUT.on){RIG.ins.point=null;cutView('top');say(CUT_NARR)}else lookFrom([44,30,52],[0,16,0]);continue}
+    if(v.startsWith('cv:')){cutView(v.slice(3));continue}
     if(v==='tour'){for(const k of keys){await explain(k)}await sayW('Ese fue el recorrido completo. Puedes repasar cualquier componente o pasar a la evaluación.');continue}
     if(v==='quiz')break}
   MODE.onPart=null;highlight(null);RIG.ins.point=null;lookFrom([30,20,36],[0,12,0]);
@@ -351,7 +354,8 @@ async function modEncuelle(opt){
     await sayW('Ahora es tu turno. Vas a subir al encuelladero.')}
   // PRÁCTICA EN PRIMERA PERSONA
   tripSetup();newStage();RIG.derrick.g.visible=false;$('#cams').hidden=true;
-  const LX=y=>C(1,0,y).x+.95;
+  const LX=y=>C(1,0,y).x+.95;const fromBoard=opt&&opt.fromBoard;
+  if(!fromBoard){
   await w(fade(()=>{fpMode(V(LX(0),F+1.62,-.35),Math.PI/2,.25);station(V(LX(0),F,-.35),Math.PI/2);insAt(V(LX(0)+.8,F,1.2))}));
   const hook=temp(new THREE.Group());RIG.mast.add(hook);hook.position.set(LX(0)-.6,1.3,-.1);const hk=new THREE.Mesh(new THREE.TorusGeometry(.05,.015,6,12),MAT.galv);hook.add(hk);rod(hook,V(0,0,0),V(0,MONK+.2-1.3,-.4),.008,MAT.wire);proxy(hook,.35);act(hook,'clip','Gancho del bloque retráctil');hot(hook);
   panel(head('Práctica · 1.ª persona','Sube al encuelladero','<p>Antes de poner un pie en la escalera, conecta tu arnés al gancho del bloque retráctil.</p>'));task('Conecta el arnés al bloque retráctil');
@@ -359,6 +363,7 @@ async function modEncuelle(opt){
   for(;;){if(await w(waitInput())==='clip')break}unact(hook);hook.visible=false;task('');
   say('Conectado. Ahora sube con tres puntos de apoyo: dos manos y un pie, o dos pies y una mano.');
   await w(tweenP(7.5,p=>{const y=p*MONK;CAM.fp.pos.set(LX(y),F+1.62+y,-.35);CAM.fg.pitch=.25+Math.sin(p*40)*.02}));
+  }
   await w(fade(()=>{fpMode(EYE(),0,-.2);station(V(0,F+MONK,1.12),0);insAt(V(.05,F+MONK,2.7))}));
   const snap=temp(new THREE.Group());RIG.parts.monkey.add(snap);snap.position.set(.25,MONK+2.0,1.0);snap.add(new THREE.Mesh(new THREE.TorusGeometry(.05,.016,6,12),MAT.galv));proxy(snap,.4);act(snap,'linea','Línea de vida');hot(snap);aim(snap);
   panel(head('Práctica · 1.ª persona','Conéctate a la línea de vida','<p>Ya estás en el encuelladero. Antes de soltar el bloque retráctil, pasa tu conexión a la línea de vida.</p>'));task('Conéctate a la línea de vida');

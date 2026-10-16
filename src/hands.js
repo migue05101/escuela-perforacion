@@ -47,7 +47,8 @@ function updateHands(dt){
   if(show){
     camera.updateMatrixWorld(true);
     let tgt=null,curl=.22,point=0;
-    if(DRAG){tgt=camera.worldToLocal(ctlGrip(DRAG.ctl));curl=.95}
+    if(MODE.handAt){tgt=camera.worldToLocal(MODE.handAt.clone());curl=.92}
+    else if(DRAG){tgt=camera.worldToLocal(ctlGrip(DRAG.ctl));curl=.95}
     else if(PTR.has||LOCK){
       const px=LOCK?null:PTR;let rc;
       if(LOCK){const r=renderer.domElement.getBoundingClientRect();rc=rayFromScreen(r.left+r.width/2,r.top+r.height/2)}else rc=rayFromScreen(px.x,px.y);

@@ -9,6 +9,9 @@ Un instructor con voz (Ing. Ramiro Cárdenas) acompaña cada módulo, explica y 
 - **Mano y brazo en primera persona**: guante de impacto y manga del overol con cinta reflectiva. En el computador siguen al ratón, en celular y tableta al dedo, y en las Meta Quest los guantes siguen a los controles.
 - **Mandos que se agarran**: joystick del malacate, palanca de rotaria, perillas de bombas y botones se arrastran con la mano (o con el control en VR).
 - **00 · Recorrido libre**: caminar por toda la locación como en un videojuego (W A S D y Shift en el computador, joystick en pantalla en celular, palancas en las Quest). Se puede subir al piso por la escalera o la planchada, entrar a la cabina y sentarse en la consola, subir al encuelladero por la escalera y bajar por el pozo en corte hasta la broca.
+- **Subir al mástil**: al pie de la escalera hay que conectar el arnés al bloque retráctil; luego se trepa con W/S (joystick o palanca en VR) hasta el encuelladero (26,6 m) y la plataforma de la corona (43 m). Arriba hay que conectarse a la línea de vida o al punto de anclaje antes de moverse. Desde el encuelladero se puede hacer el simulacro de la línea de escape.
+- **Trabajar en el lugar**: en el recorrido hay puntos para hacer cada práctica donde ocurre (conexiones en la mesa, encuelle en el encuelladero, tubería en los burros, pruebas de lodo, consola, supervisión, EPP) y volver al recorrido al terminar.
+- **Pozo en corte bajo el taladro**: el terreno se abre frente al equipo y muestra, como una ilustración, el contrapozo, las preventoras, los revestimientos cementados, las formaciones con su profundidad real, la sarta completa hasta la broca y la circulación del lodo.
 - **Cabina del perforador**: sillón con mandos en los apoyabrazos, tres pantallas (parámetros, lodo y bombas, tendencias y alarmas), indicador de peso analógico, manómetros y panel de control de pozo (MAESTRO + función). La simulación calcula peso sobre la broca, ROP, torque, presión de bomba, flujo de retorno y volumen de tanques.
 
 ## Rutas por cargo
@@ -42,6 +45,6 @@ En las Meta Quest: abrir ese enlace en el navegador de las gafas y tocar **VR** 
 
 ## Código
 
-El sitio es un solo `index.html`. Las partes editables están en `src/` (`data.js` contenidos, `engine.js` motor, `models.js` modelos 3D, `modules.js` guiones de los módulos comunes, `roles.js` prácticas por cargo, `cabin.js` cabina y simulador de perforación, `hands.js` mano en primera persona, mandos y sonido, `explore.js` recorrido libre, `well.js` pozo en corte, `app.js` perfiles, panel y bucle). Después de editar, ejecutar `sh src/build.sh` para regenerar `index.html`.
+El sitio es un solo `index.html`. Las partes editables están en `src/` (`data.js` contenidos, `engine.js` motor, `models.js` modelos 3D, `modules.js` guiones de los módulos comunes, `roles.js` prácticas por cargo, `cabin.js` cabina y simulador de perforación, `hands.js` mano en primera persona, mandos y sonido, `explore.js` recorrido libre, `well.js` bajada por el pozo, `cut.js` corte del subsuelo bajo el taladro, `details.js` señalización y equipos de seguridad, `app.js` perfiles, panel y bucle). Después de editar, ejecutar `sh src/build.sh` para regenerar `index.html`.
 
 Los procedimientos son esquemas generales de referencia: antes de uso formal deben validarse con el instructor HSE, el procedimiento escrito de cada equipo y la certificación correspondiente (IWCF / IADC WellSharp, curso de alturas vigente).
