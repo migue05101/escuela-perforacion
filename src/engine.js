@@ -204,7 +204,7 @@ function setupXR(){
     const g=renderer.xr.getControllerGrip(i);const gl=makeGlove(i===1?1:-1);gl.g.rotation.set(-.35,0,(i===1?-1:1)*1.3);gl.g.position.set(0,-.01,.05);g.add(gl.g);g.userData.glove=gl;dolly.add(g);
     c.addEventListener('connected',ev=>{const s=ev.data&&ev.data.handedness==='left'?-1:1;g.remove(gl.g);const n=makeGlove(s);n.g.rotation.set(-.35,0,-s*1.3);n.g.position.set(0,-.01,.05);g.add(n.g);g.userData.glove=n});
     const sel=down=>{tmp.identity().extractRotation(c.matrixWorld);rc.ray.origin.setFromMatrixPosition(c.matrixWorld);rc.ray.direction.set(0,0,-1).applyMatrix4(tmp);const gv=g.userData.glove;if(gv)gv.set(down?.9:.2,down?.2:0);
-      if(down){if(VRB.menu&&VRB.mesh.visible&&rc.intersectObject(VRB.menu).length){clickSnd&&clickSnd();if(!$('#s-mod').hidden)backToHub();return}if(xrGrab(i,g,rc))return;const h=hitTest(rc);if(h&&h.act==='HOLD'){HOLD.on=true;return}onHit(h)}else{xrRelease(i);HOLD.on=false}};
+      if(down){if(typeof userActive==='function')userActive();if(VRB.menu&&VRB.mesh.visible&&rc.intersectObject(VRB.menu).length){clickSnd&&clickSnd();if(!$('#s-mod').hidden)backToHub();return}if(xrGrab(i,g,rc))return;const h=hitTest(rc);if(h&&h.act==='HOLD'){HOLD.on=true;return}onHit(h)}else{xrRelease(i);HOLD.on=false}};
     c.addEventListener('selectstart',()=>sel(true));c.addEventListener('selectend',()=>sel(false));c.addEventListener('squeezestart',()=>sel(true));c.addEventListener('squeezeend',()=>sel(false));dolly.add(c)}
   // tablero flotante con instructor + tarea
   const cv=document.createElement('canvas');cv.width=1024;cv.height=512;const tx=new THREE.CanvasTexture(cv);tx.encoding=THREE.sRGBEncoding;
@@ -295,7 +295,7 @@ P.addEventListener('pointerdown',e=>{const b=e.target.closest('.hold');if(b){HOL
 const holdOff=()=>{HOLD.on=false;P.querySelectorAll('.hold.on').forEach(b=>b.classList.remove('on'))};
 P.addEventListener('pointerup',holdOff);P.addEventListener('pointercancel',holdOff);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function panel(h,o){if(!h){P.innerHTML='';panelState(false);if(renderer&&renderer.xr.isPresenting&&!CURBTN.length)vrButtons([]);return}P.innerHTML='<button class="pclose" type="button" data-pc="1" aria-label="Plegar el panel">–</button>'+h;const need=(o&&o.open)||/class="opt|class="btn hold|data-open|class="score/.test(h);panelState(need||PANEL.pinned);if(renderer&&renderer.xr.isPresenting&&!CURBTN.length)vrButtons([])}
+function panel(h,o){if(h&&typeof CERT!=='undefined'&&CERT.mod)h=h.replace(/<button[^>]*data-in="skip"[^>]*>[^<]*<\/button>/g,'');if(!h){P.innerHTML='';panelState(false);if(renderer&&renderer.xr.isPresenting&&!CURBTN.length)vrButtons([]);return}P.innerHTML='<button class="pclose" type="button" data-pc="1" aria-label="Plegar el panel">–</button>'+h;const need=(o&&o.open)||/class="opt|class="btn hold|data-open|class="score/.test(h);panelState(need||PANEL.pinned);if(renderer&&renderer.xr.isPresenting&&!CURBTN.length)vrButtons([])}
 function optsHTML(opts){return `<div class="list">${opts.map(o=>o.v==='HOLD'?`<button class="btn hold" type="button">${esc(o.t)}</button>`:`<button class="opt" type="button" data-in="${esc(o.v)}">${o.t}</button>`).join('')}</div>`}
 function setButtons(opts){CURBTN=opts;vrButtons(opts)}
 async function ask(head,opts,valid){

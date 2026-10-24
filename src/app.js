@@ -13,7 +13,7 @@ function renderLogin(){const L=$('#profileList');
 $('#profileList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.demo){createProfile('Aprendiz de demostración','Cuñero');return}DB.cur=b.dataset.id;save();openHub()});
 $('#newProfile').addEventListener('submit',e=>{e.preventDefault();const n=$('#pName').value.trim();if(!n){toast('Escribe el nombre del aprendiz.');return}createProfile(n,$('#pRole').value)});
 function createProfile(name,role){const p={id:'p'+Date.now().toString(36),name,role,mods:{}};DB.profiles.push(p);DB.cur=p.id;save();$('#pName').value='';openHub()}
-$('#switchUser').addEventListener('click',()=>{renderLogin();show('s-login')});
+$('#switchUser').addEventListener('click',()=>{if(ST.me){logout();return}renderLogin();show('s-login')});
 function modCard(p,id){const m=MODS.find(x=>x.id===id);const b=p.mods[m.id]?.best;const chip=b==null?'<span class="chip">Pendiente</span>':b>=PASS?'<span class="chip ok">Aprobado</span>':'<span class="chip warn">Repetir</span>';
   return `<button class="mod" type="button" data-mod="${m.id}"><span class="num">${m.n}</span><span class="tag">${m.tag}</span><span><h3>${m.t}</h3><p>${m.d}</p></span><span class="foot">${chip}<span class="mono muted">${b==null?`~${m.min} min`:`Mejor: ${b}`}</span></span></button>`}
 $('#hubRoleSel').innerHTML=ROLES.map(r=>`<option>${r}</option>`).join('');
@@ -32,13 +32,13 @@ function openHub(){const p=prof();if(!p){renderLogin();show('s-login');return}
     +sec('Tu cargo · '+ROLE_INFO[rk].n,cnt(R.own),ROLE_INFO[rk].d,R.own)
     +sec('Repaso del cargo anterior','',R.prev.length?'Prácticas del cargo que normalmente se ocupa antes del tuyo. Conviene dominarlas.':'',R.prev)
     +sec('Otros cargos','','Puedes practicarlos para conocer el trabajo de tus compañeros o prepararte para ascender.',others);
-  show('s-hub');checkPlatforms();vrHub()}
+  show('s-hub');checkPlatforms();vrHub();renderCertHub()}
 // en las gafas el panel principal no se ve: el menú de módulos aparece flotando en la escena
 function vrHub(){if(!renderer||!renderer.xr.isPresenting||MODE.ar||$('#s-hub').hidden)return;const p=prof();if(!p)return;
   const rk=roleKey(p.role),route=COMMON.concat(ROUTE[rk].own);
   if(!RIG.home)saveHome();newCtx();MODE={};resetScene();const at=V(9,0,15);station(at,yawTo(at,V(0,8,0)));
   setSub('Hola, '+p.name.split(' ')[0]+'. Elige un módulo: apunta con el control y aprieta el gatillo.');
-  run(async()=>{const v=await ask(head('Realidad virtual','Elige un módulo'),route.map(id=>{const m=MODS.find(x=>x.id===id);const b=p.mods[id]?.best;return{t:`${m.n} · ${m.t}${b>=PASS?'  ✓':''}`,v:'m:'+id}}));openModule(v.slice(2))})}
+  run(async()=>{const cert=ST.me?COURSES.map(c=>({t:'Curso: '+c.title,v:'c:'+c.id})):[];const v=await ask(head('Realidad virtual','Elige un módulo'),cert.concat(route.map(id=>{const m=MODS.find(x=>x.id===id);const b=p.mods[id]?.best;return{t:`${m.n} · ${m.t}${b>=PASS?'  ✓':''}`,v:'m:'+id}})));if(v.startsWith('c:'))openCourse(courseById(v.slice(2)));else openModule(v.slice(2))})}
 $('#modGrid').addEventListener('click',e=>{const b=e.target.closest('[data-mod]');if(b)openModule(b.dataset.mod)});
 async function checkPlatforms(){const base=['Celular','Tablet','Computador'].map(t=>`<span class="chip ok">${t}</span>`);
   let vr='<span class="chip">Meta Quest (VR): abrir desde su navegador</span>',ar='<span class="chip">Realidad aumentada: navegador compatible</span>';
@@ -57,7 +57,7 @@ function openModule(id,opt){
     if(intro){await introWalk(m);resetScene();panel('');MODE.id=id;setTimeout(()=>$('#fade').classList.remove('on'),260)}
     return SCRIPTS[id](opt)});
 }
-function backToHub(){ROAMRET=null;newCtx();MODE={};if(RIG.home)resetScene();openHub()}
+function backToHub(){if(typeof CERT!=='undefined'&&CERT.course&&($('#s-mod').classList.contains('certmode'))){certLeave();return}ROAMRET=null;newCtx();MODE={};if(RIG.home)resetScene();openHub()}
 $('#backHub').addEventListener('click',backToHub);
 document.querySelectorAll('[data-cam]').forEach(b=>b.addEventListener('click',()=>{const c={general:[[44,30,52],[0,16,0]],piso:[[9,F+4,10],[0,F+.8,0]],encuelladero:[[6,F+MONK+3,8],[-.4,F+MONK+.5,1.3]],bop:[[4.6,1.8,5],[0,1.3,0]]}[b.dataset.cam];if(CAM.mode!=='fp')lookFrom(c[0],c[1])}));
 
@@ -90,4 +90,4 @@ function tick(){
     if(I.mouth)I.mouth.visible=true;const hs=FPH&&FPH.show;if(FPH){FPH.h.g.visible=FPH.sl.visible=FPH.band.visible=false}renderer.setViewport(x,y,w,h);renderer.setScissor(x,y,w,h);renderer.setScissorTest(true);renderer.setClearColor(0x2a3640,1);renderer.clear();renderer.render(scene,pc);renderer.setScissorTest(false);if(FPH&&hs){FPH.h.g.visible=FPH.sl.visible=FPH.band.visible=true}renderer.setClearColor(0x000000,0)}
 }
 
-if(prof())openHub();else{renderLogin();show('s-login')}
+certBoot();

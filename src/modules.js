@@ -54,13 +54,14 @@ async function quizFlow(id){
   }
   return Math.round(ok/Q.length*100)}
 async function result(score,detail){
+  if(typeof CERT!=='undefined'&&CERT.act){const a=CERT.act;CERT.act=null;a(score,detail);return}
   const {prev,best}=complete(MODE.id,score);const ok=score>=PASS;
   say(ok?`Aprobaste con ${score} puntos. Buen trabajo.`:`Obtuviste ${score} puntos. Necesitas ${PASS} para aprobar. Repasa y vuelve a intentarlo.`);
   const v=await ask(`<div class="eyebrow">Resultado</div><div class="score mono" style="color:var(${ok?'--ok':'--bad'})">${score}</div>
     <p><span class="chip ${ok?'ok':'bad'}">${ok?'Aprobado':'No aprobado'}</span> <span class="muted">Mínimo ${PASS} · Mejor: ${best}${prev!=null&&score>prev?' (nuevo récord)':''}</span></p>${detail?`<p class="muted">${detail}</p>`:''}`,
     [{t:'Repetir el módulo',v:'retry'}].concat(ROAMRET?[{t:'Volver al recorrido libre',v:'roam'}]:[],[{t:'Volver a los módulos',v:'hub'}]));
   if(v==='retry')openModule(MODE.id,ROAMRET?ROAMRET.opt:{noIntro:true});else if(v==='roam'){const r=ROAMRET;ROAMRET=null;openModule('recorrido',{resume:r})}else backToHub()}
-async function startChoice(title,txt){return ask(head('Cómo empezar',title,`<p>${txt}</p>`),[{t:'Ver la explicación y la demostración (recomendado)',v:'demo'},{t:'Ir directo a la práctica',v:'practice'}])}
+async function startChoice(title,txt){if(typeof CERT!=='undefined'&&CERT.mod)return 'demo';return ask(head('Cómo empezar',title,`<p>${txt}</p>`),[{t:'Ver la explicación y la demostración (recomendado)',v:'demo'},{t:'Ir directo a la práctica',v:'practice'}])}
 
 /* ===================================================================== 1 · HSE */
 const HSE_STEPS=['Bienvenida','Ponte el EPP','Línea de fuego','Trabajo en alturas','Alarma de H2S','Autoridad para detener','Evaluación'];
