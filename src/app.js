@@ -70,7 +70,7 @@ function tick(){
   if(MODE.tick)MODE.tick(dt);
   const I=RIG.ins;I.talk=NAR.speaking;if(talkWas!==I.talk){talkWas=I.talk;$('#talkDot').classList.toggle('on',I.talk)}
   if(I.talk)lastTalk=T;$('#sub').classList.toggle('quiet',!I.talk&&T-lastTalk>3.5);
-  insFace(dt);animatePeople(dt,T);updateCut(dt);detailTick(dt);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);xrTick(dt);
+  insFace(dt);animatePeople(dt,T);updateCut(dt);detailTick(dt);updateLines();updateFX(dt);updateBubbles(dt);updateHands(dt);xrTick(dt);visualTick(dt);
   const k=.5+.5*Math.sin(T*5);
   for(const o of INTER){const h=o.userData.hot,a=h?.35+.65*k:o.userData.aim?.45:.06+.1*k;o.traverse(m=>{if(m.isMesh)emis(m,.94*a,.62*a,.1*a)})}
   RIG.beacons.forEach((b,i)=>b.material.emissive.setHex(MODE.alarm&&((T*4|0)%2===i)?b.userData.c:0));
@@ -81,7 +81,7 @@ function tick(){
   const cv=renderer.domElement,W=cv.clientWidth,Hh=cv.clientHeight;
   if(I.mouth){I.head.getWorldPosition(hv);const fw=V(Math.sin(I.g.rotation.y),0,Math.cos(I.g.rotation.y));I.mouth.visible=CAM.pos.clone().sub(hv).normalize().dot(fw)>.35&&CAM.pos.distanceTo(hv)<12}
   if(renderer.xr.isPresenting){renderer.render(scene,camera);return}
-  renderer.setScissorTest(false);renderer.setViewport(0,0,W,Hh);renderer.render(scene,camera);
+  renderer.setScissorTest(false);renderer.setViewport(0,0,W,Hh);renderMain();
   // retrato del instructor (imagen en imagen)
   const pip=$('#pip');
   if(!renderer.xr.isPresenting&&I.g.visible&&pip.offsetWidth&&!$('#sub').classList.contains('quiet')){const r=pip.getBoundingClientRect(),c=cv.getBoundingClientRect();

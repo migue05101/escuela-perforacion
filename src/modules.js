@@ -40,7 +40,7 @@ function resetScene(){
   gauge(false);$('#cams').hidden=false;MODE.tick=null;MODE.onPart=null;setSub('—');task('');
   lookFrom([44,30,52],[0,16,0]);station(V(6,F,6),.7);
 }
-function groundGhost(on){ground.traverse(o=>{if(o.isMesh){o.material.transparent=on;o.material.opacity=on?.22:1;o.material.depthWrite=!on}});RIG.parts.cellar.traverse(o=>{if(o.isMesh){o.material.transparent=on;o.material.opacity=on?.25:1}})}
+function groundGhost(on){ground.traverse(o=>{if(o.isMesh){const m=o.material,u=m.userData;if(u.g0===undefined)u.g0=[m.transparent,m.opacity,m.depthWrite];m.transparent=on||u.g0[0];m.opacity=on?.22*u.g0[1]:u.g0[1];m.depthWrite=on?false:u.g0[2]}});RIG.parts.cellar.traverse(o=>{if(o.isMesh){o.material.transparent=on;o.material.opacity=on?.25:1}})}
 
 /* ---------- utilidades de evaluación ---------- */
 async function quizFlow(id){

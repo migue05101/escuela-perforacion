@@ -92,11 +92,11 @@ function initEngine(){
   renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.xr.enabled=true;
   view.prepend(renderer.domElement);
-  scene=new THREE.Scene();scene.fog=new THREE.Fog(0xc9d5dc,220,1300);
+  scene=new THREE.Scene();scene.fog=new THREE.Fog(0xc8d6df,260,2300);
   camera=new THREE.PerspectiveCamera(55,1,.08,2400);
   dolly=new THREE.Group();dolly.add(camera);scene.add(dolly);
   const sunDir=V(.55,.72,.42).normalize();
-  const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{top:{value:new THREE.Color(0x3f78b5)},hor:{value:new THREE.Color(0xd4e0e6)},bot:{value:new THREE.Color(0x9c9682)},sd:{value:sunDir}},
+  const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{top:{value:new THREE.Color(0x2a62a8)},hor:{value:new THREE.Color(0xc6d9e6)},bot:{value:new THREE.Color(0x9c9682)},sd:{value:sunDir}},
     vertexShader:'varying vec3 vW;void main(){vW=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
     fragmentShader:'uniform vec3 top,hor,bot,sd;varying vec3 vW;void main(){float h=vW.y;vec3 c=h>0.?mix(hor,top,pow(clamp(h,0.,1.),.5)):mix(hor,bot,pow(clamp(-h,0.,1.),.35));float s=max(dot(normalize(vW),sd),0.);c+=vec3(1.,.92,.75)*pow(s,600.)*3.+vec3(1.,.88,.7)*pow(s,10.)*.22;gl_FragColor=vec4(c,1.);}'});
   sky=new THREE.Mesh(new THREE.SphereGeometry(1500,32,16),skyMat);scene.add(sky);
@@ -109,7 +109,7 @@ function initEngine(){
   scene.add(sun);scene.add(sun.target);
   world=new THREE.Group();scene.add(world);
   raycaster=new THREE.Raycaster();
-  buildWorld();loadWorker();initHands();
+  buildWorld();try{visualUpgrade()}catch(e){console.warn('Mejoras visuales',e)}loadWorker();initHands();
   try{batchStatic(world);freezeStatic(world)}catch(e){console.warn('No se pudieron unir las piezas estáticas',e)}
   setupInput(renderer.domElement);setupXR();
   new ResizeObserver(resize).observe(view);applyQuality();resize();
@@ -120,10 +120,10 @@ function applyQuality(){
   const q=QUALITY;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='alto'?2:q==='medio'?1.5:1));
   renderer.shadowMap.enabled=q!=='bajo';sun.shadow.mapSize.set(q==='alto'?4096:2048,q==='alto'?4096:2048);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}
   scene.traverse(o=>{if(o.material&&o.material.needsUpdate!==undefined)o.material.needsUpdate=true});
-  $('#btnQ').textContent='Gráficos: '+q;resize();
+  $('#btnQ').textContent='Gráficos: '+q;resize();setupPost();
 }
 $('#btnQ').addEventListener('click',()=>{QUALITY=QUALITY==='alto'?'medio':QUALITY==='medio'?'bajo':'alto';applyQuality()});
-function resize(){if(!renderer||renderer.xr.isPresenting)return;const v=$('#view');const w=v.clientWidth||1,h=v.clientHeight||1;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+function resize(){if(!renderer||renderer.xr.isPresenting)return;const v=$('#view');const w=v.clientWidth||1,h=v.clientHeight||1;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();if(typeof postResize==="function")postResize()}
 
 /* ---------- cámara: órbita / primera persona / cinemática ---------- */
 const CAM={mode:'orbit',lock:false,orb:{th:.75,ph:1.15,r:80,t:V(0,18,0)},og:{th:.75,ph:1.15,r:80,t:V(0,18,0)},fp:{pos:V(),yaw:0,pitch:0},fg:{yaw:0,pitch:0},cine:null,pos:V(60,40,60),tgt:V(0,18,0)};
@@ -176,7 +176,7 @@ function setupInput(el){
     if(pts.size===1){if(down)down.moved+=Math.abs(dx)+Math.abs(dy);if(down&&down.moved<5)return;
       if(CAM.mode==='cine'){if(CAM.lock)return;syncOrbit();CAM.og.th=CAM.orb.th;CAM.og.ph=CAM.orb.ph;CAM.og.r=CAM.orb.r;CAM.og.t.copy(CAM.orb.t);CAM.mode='orbit'}
       if(CAM.mode==='orbit'){CAM.og.th-=dx*.006;CAM.og.ph=clamp(CAM.og.ph-dy*.006,.12,MODE.under?2.6:1.56)}
-      else if(CAM.mode==='fp'){CAM.fg.yaw+=dx*.005;CAM.fg.pitch=clamp(CAM.fg.pitch+dy*.005,-1.35,1.2)}}
+      else if(CAM.mode==='fp'){CAM.fg.yaw-=dx*.005;CAM.fg.pitch=clamp(CAM.fg.pitch-dy*.005,-1.35,1.2)}}
     else if(pts.size===2&&CAM.mode==='orbit'){const d=dist();if(pinch)CAM.og.r=clamp(CAM.og.r*pinch/d,3,220);pinch=d;if(down)down.moved=99}});
   const up=e=>{if(DRAG&&DRAG.id===e.pointerId){const c=DRAG.ctl,mv=Math.hypot(e.clientX-DRAG.x,e.clientY-DRAG.y);ctlUp();if(mv<6&&c.type!=='button')aimLock(c);pts.delete(e.pointerId);down=null;return}if(down&&down.ctl){pts.delete(e.pointerId);down=null;return}if(down&&down.moved<6&&pts.size===1)pickAt(e.clientX,e.clientY);pts.delete(e.pointerId);if(!pts.size)down=null;pinch=0;if(e.pointerType!=='mouse')setTimeout(()=>{if(!pts.size&&!DRAG){PTR.hp=null}},900)};
   el.addEventListener('pointerup',up);el.addEventListener('pointercancel',e=>{pts.delete(e.pointerId);down=null});

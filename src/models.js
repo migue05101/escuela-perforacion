@@ -83,7 +83,7 @@ function animatePeople(dt,T){
 function buildWorld(){
   ground=new THREE.Group();world.add(ground);
   const gm=std(0xffffff,{map:TEX.grass,roughness:1,metalness:0}),pm=std(0xffffff,{map:TEX.gravel,roughness:1,metalness:0});
-  rectHole(ground,-700,700,-700,700,1.85,-.02,gm,9);
+  rectHole(ground,-120,120,-120,120,1.85,-.02,gm,9);
   pad=rectHole(ground,-42,46,-52,54,1.85,.01,pm,5);
   buildSite();buildCellar();buildBOP();buildSub();buildFloor();buildDrawworks();buildDoghouse();buildMast();buildMud();buildRacks();buildTools();buildCrew();buildCrane();buildInstructor();buildWell();buildFX();buildDetails();
   world.traverse(o=>{if(o.isMesh){if(o.castShadow===false)return;o.castShadow=true;o.receiveShadow=true}});
@@ -95,15 +95,7 @@ function highlight(key){for(const k in RIG.parts)RIG.parts[k].traverse(o=>{if(o.
 
 function buildSite(){
   const s=new THREE.Group();world.add(s);RIG.site=s;
-  // montañas del Huila al fondo
-  const mm=std(0x4f6a45,{roughness:1,metalness:0,flatShading:true});
-  [[-420,-380,170,140],[-150,-520,210,190],[220,-470,190,160],[480,-260,160,120],[520,180,150,110],[-520,200,200,150],[60,560,230,170],[-300,480,170,120]].forEach(([x,z,r,h])=>{const c=new THREE.Mesh(new THREE.ConeGeometry(r,h,9,1),mm);c.position.set(x,h/2-6,z);c.rotation.y=R()*3;c.castShadow=false;s.add(c)});
-  // árboles (instanciados)
-  const N=110,trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(.18,.28,4,6),std(0x5a4330,{roughness:1}),N),crown=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(2.6,0),std(0x3f6a2c,{roughness:1,flatShading:true}),N);
-  const mtx=new THREE.Matrix4();let n=0;
-  while(n<N){const a=R()*Math.PI*2,r=62+R()*140,x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.abs(x)<9&&z>40)continue;const sc=.7+R()*.9;
-    mtx.compose(V(x,2*sc,z),new THREE.Quaternion(),V(sc,sc,sc));trunk.setMatrixAt(n,mtx);mtx.compose(V(x,(4.6+R())*sc,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(R(),R(),R())),V(sc*(1+R()*.4),sc*(.9+R()*.5),sc*(1+R()*.4)));crown.setMatrixAt(n,mtx);n++}
-  s.add(trunk);s.add(crown);
+  // montañas, colinas y vegetación: ver visual.js
   // vía de acceso
   const road=new THREE.Mesh(new THREE.PlaneGeometry(8,160),std(0x7d725f,{map:rep(TEX.gravel,2,30),roughness:1}));road.rotation.x=-Math.PI/2;road.position.set(0,.015,132);road.receiveShadow=true;s.add(road);
   // portería y aviso
@@ -456,7 +448,7 @@ function upgradeOne(P,o){
   P.head=W.head||P.head;P.pipOff=.1;playClip(P,'Idle',0)}
 function upgradePeople(){
   try{
-    upgradeOne(RIG.ins,{tint:{Worker_Yellow:0xf2f2ee,Worker_Vest:0x1f3f6a},mouth:[0,.002,.165]});
+    upgradeOne(RIG.ins,{mouth:[0,.002,.165]});
     upgradeOne(RIG.hand1,{});upgradeOne(RIG.hand2,{});upgradeOne(RIG.mudman,{tint:{Worker_Vest:0x2f7d4a}});
   }catch(e){console.warn('Personajes: se mantienen los básicos',e)}
 }

@@ -8,22 +8,34 @@ document.addEventListener('pointerlockchange',()=>{LOCK=!!renderer&&document.poi
 document.addEventListener('mousemove',e=>{if(!LOCK)return;CAM.fg.yaw-=e.movementX*.0024;CAM.fg.pitch=clamp(CAM.fg.pitch-e.movementY*.0024,-1.35,1.25)});
 
 /* ---------- guante ---------- */
+function roundBox(w,h,d,k){const g=new THREE.BoxGeometry(w,h,d,6,4,6);const p=g.attributes.position,v=V(0,0,0),n=V(0,0,0);
+  for(let i=0;i<p.count;i++){v.set(p.getX(i)/(w/2),p.getY(i)/(h/2),p.getZ(i)/(d/2));n.copy(v).normalize();v.lerp(n,k);p.setXYZ(i,v.x*w/2,v.y*h/2,v.z*d/2)}g.computeVertexNormals();return g}
+let GLOVETEX=null;
+function gloveTex(){if(GLOVETEX)return GLOVETEX;
+  const leather=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#d9a93a';g.fillRect(0,0,w,h);speckle(g,w,h,9000,()=>`rgba(${R()<.5?120:255},${R()<.5?80:220},${R()<.5?20:120},${R()*.18})`);blotch(g,w,h,24,'rgba(120,80,20,.16)',40);blotch(g,w,h,10,'rgba(80,55,25,.22)',26);
+    g.strokeStyle='rgba(90,60,20,.55)';g.setLineDash([4,3]);g.lineWidth=1.6;g.strokeRect(10,10,w-20,h-20)},null);
+  const rub=canvasTex(128,128,(g,w,h)=>{g.fillStyle='#2b2a27';g.fillRect(0,0,w,h);for(let y=0;y<h;y+=8){g.fillStyle='rgba(255,255,255,.06)';g.fillRect(0,y,w,3)}speckle(g,w,h,1200,()=>`rgba(255,255,255,${R()*.06})`)},null);
+  const knit=canvasTex(128,128,(g,w,h)=>{g.fillStyle='#34332f';g.fillRect(0,0,w,h);for(let x=0;x<w;x+=6){g.fillStyle='rgba(255,255,255,.08)';g.fillRect(x,0,3,h)}speckle(g,w,h,1500,()=>`rgba(0,0,0,${R()*.3})`)},null);
+  const fabric=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#d8661c';g.fillRect(0,0,w,h);for(let y=0;y<h;y+=2){g.fillStyle=`rgba(0,0,0,${.04+R()*.04})`;g.fillRect(0,y,w,1)}for(let x=0;x<w;x+=2){g.fillStyle=`rgba(255,255,255,${.02+R()*.03})`;g.fillRect(x,0,1,h)}blotch(g,w,h,14,'rgba(70,40,20,.14)',50)},null);
+  GLOVETEX={leather,rub,knit,fabric};return GLOVETEX}
 function makeGlove(side){
-  const g=new THREE.Group();
-  const glove=std(0xe0b23a,{roughness:.82,metalness:0}),pad=std(0x2d2a26,{roughness:.9,metalness:0}),cuff=std(0x3b3a36,{roughness:.9});
-  const palm=new THREE.Mesh(new THREE.BoxGeometry(.084,.03,.092),glove);g.add(palm);
-  const back=new THREE.Mesh(new THREE.BoxGeometry(.078,.012,.07),pad);back.position.set(0,.019,.006);g.add(back);
-  for(let i=0;i<4;i++){const k=new THREE.Mesh(new THREE.BoxGeometry(.017,.012,.016),pad);k.position.set((-.03+i*.02)*side,.02,-.04);g.add(k)}
-  const cf=new THREE.Mesh(new THREE.CylinderGeometry(.047,.043,.075,14),cuff);cf.rotation.x=Math.PI/2;cf.position.z=.075;g.add(cf);
+  const g=new THREE.Group();const T=gloveTex();
+  const glove=std(0xffffff,{map:T.leather,roughness:.78,metalness:0}),pad=std(0xffffff,{map:T.rub,roughness:.85,metalness:0}),cuff=std(0xffffff,{map:rep(T.knit,3,1),roughness:.95});
+  const palm=new THREE.Mesh(roundBox(.086,.032,.094,.55),glove);g.add(palm);
+  const back=new THREE.Mesh(roundBox(.074,.012,.066,.6),pad);back.position.set(0,.017,.004);g.add(back);
+  for(let i=0;i<4;i++){const k=new THREE.Mesh(roundBox(.018,.011,.015,.7),pad);k.position.set((-.03+i*.02)*side,.019,-.04);g.add(k)}
+  const cf=new THREE.Mesh(new THREE.CylinderGeometry(.047,.045,.08,24,1,true),cuff);cf.rotation.x=Math.PI/2;cf.position.z=.076;g.add(cf);
   const fingers=[];const L=[[.04,.028],[.046,.031],[.043,.029],[.034,.024]];
   for(let i=0;i<4;i++){const a=new THREE.Group();a.position.set((-.031+i*.0205)*side,0,-.046);g.add(a);
-    const s1=new THREE.Mesh(new THREE.CylinderGeometry(.0095,.0098,L[i][0],8),glove);s1.rotation.x=Math.PI/2;s1.position.z=-L[i][0]/2;a.add(s1);
+    const kn=new THREE.Mesh(new THREE.SphereGeometry(.0102,14,10),glove);a.add(kn);
+    const s1=new THREE.Mesh(new THREE.CylinderGeometry(.0096,.0101,L[i][0],14),glove);s1.rotation.x=Math.PI/2;s1.position.z=-L[i][0]/2;a.add(s1);
     const b=new THREE.Group();b.position.z=-L[i][0];a.add(b);
-    const s2=new THREE.Mesh(new THREE.CylinderGeometry(.0085,.0092,L[i][1],8),glove);s2.rotation.x=Math.PI/2;s2.position.z=-L[i][1]/2;b.add(s2);
-    const tip=new THREE.Mesh(new THREE.SphereGeometry(.0088,8,6),glove);tip.position.z=-L[i][1];b.add(tip);fingers.push({a,b})}
+    const j2=new THREE.Mesh(new THREE.SphereGeometry(.0094,14,10),glove);b.add(j2);
+    const s2=new THREE.Mesh(new THREE.CylinderGeometry(.0086,.0093,L[i][1],14),glove);s2.rotation.x=Math.PI/2;s2.position.z=-L[i][1]/2;b.add(s2);
+    const tip=new THREE.Mesh(new THREE.SphereGeometry(.0088,14,10),glove);tip.scale.set(1,.9,1.15);tip.position.z=-L[i][1];b.add(tip);fingers.push({a,b})}
   const th=new THREE.Group();th.position.set(-.043*side,-.006,-.004);th.rotation.set(0,.75*side,0);g.add(th);
-  const t1=new THREE.Mesh(new THREE.CylinderGeometry(.0115,.012,.036,8),glove);t1.rotation.x=Math.PI/2;t1.position.z=-.018;th.add(t1);
-  const tb=new THREE.Group();tb.position.z=-.036;th.add(tb);const t2=new THREE.Mesh(new THREE.CylinderGeometry(.0105,.011,.028,8),glove);t2.rotation.x=Math.PI/2;t2.position.z=-.014;tb.add(t2);
+  const t0=new THREE.Mesh(new THREE.SphereGeometry(.0125,14,10),glove);th.add(t0);const t1=new THREE.Mesh(new THREE.CylinderGeometry(.0115,.012,.036,14),glove);t1.rotation.x=Math.PI/2;t1.position.z=-.018;th.add(t1);
+  const tb=new THREE.Group();tb.position.z=-.036;th.add(tb);const t2=new THREE.Mesh(new THREE.CylinderGeometry(.0105,.011,.028,14),glove);t2.rotation.x=Math.PI/2;t2.position.z=-.014;tb.add(t2);const t3=new THREE.Mesh(new THREE.SphereGeometry(.0105,14,10),glove);t3.position.z=-.028;tb.add(t3);
   g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false}});
   return{g,fingers,th,tb,curl:0,point:0,
     set(c,pt){this.curl=c;this.point=pt;this.fingers.forEach((f,i)=>{const cc=i===0?c*(1-pt):c;f.a.rotation.x=-cc*1.25;f.b.rotation.x=-cc*1.35});this.th.rotation.x=-c*.5;this.tb.rotation.x=-c*.7}}}
@@ -33,8 +45,8 @@ let FPH=null;
 const ELBOW=V(.36,-.5,-.12);
 function initHands(){
   const h=makeGlove(1);h.g.scale.setScalar(1.25);camera.add(h.g);
-  const suit=std(0xd8661c,{roughness:.86,metalness:0}),refl=std(0xd8dcd4,{emissive:0x4a4a4a,roughness:.3,metalness:.4});
-  const sl=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,16),suit);camera.add(sl);
+  const suit=std(0xffffff,{map:rep(gloveTex().fabric,2,1),roughness:.9,metalness:0}),refl=std(0xd8dcd4,{emissive:0x4a4a4a,roughness:.3,metalness:.4});
+  const sl=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,28),suit);camera.add(sl);
   const band=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,16),refl);camera.add(band);
   [h.g,sl,band].forEach(o=>o.traverse(m=>{if(m.isMesh){m.castShadow=false;m.receiveShadow=false;m.frustumCulled=false}}));
   FPH={h,sl,band,pos:V(.19,-.19,-.5),dir:V(0,0,-1),curl:.2,point:0,poke:0,show:false};
